@@ -229,7 +229,8 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'barbican_uireleasenotes', u'Barbican UI Release Notes Documentation',
+    ('index', 'barbican_uireleasenotes',
+     u'Barbican UI Release Notes Documentation',
      [u'Barbican UI Developers'], 1)
 ]
 
@@ -243,7 +244,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    ('index', 'Barbican-UIReleaseNotes', u'Barbican UI Release Notes Documentation',
+    ('index', 'Barbican-UIReleaseNotes',
+     u'Barbican UI Release Notes Documentation',
      u'Barbican UI Developers', 'Barbican-UIReleaseNotes',
      'One line description of project.',
      'Miscellaneous'),
