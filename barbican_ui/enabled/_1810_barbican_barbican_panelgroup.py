@@ -10,12 +10,27 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# The slug of the panel to be added to HORIZON_CONFIG. Required.
-PANEL = 'secrets'
-# The slug of the panel group the PANEL is associated with.
-PANEL_GROUP = 'barbican'
-# The slug of the dashboard the PANEL associated with. Required.
-PANEL_DASHBOARD = 'barbican'
+from django.utils.translation import gettext_lazy as _
 
-# Python panel class of the PANEL to be added.
-ADD_PANEL = 'barbican_ui.content.secrets.panel.Secrets'
+# The slug of the panel group to be added to HORIZON_CONFIG. Required.
+PANEL_GROUP = 'barbican'
+# The display name of the PANEL_GROUP. Required.
+PANEL_GROUP_NAME = _('Barbican')
+# The slug of the dashboard the PANEL_GROUP associated with. Required.
+PANEL_GROUP_DASHBOARD = 'project'
+
+ADD_INSTALLED_APPS = ['barbican_ui']
+
+ADD_ANGULAR_MODULES = [
+    'horizon.dashboard.barbican'
+]
+
+ADD_JS_FILES = [
+    'horizon/lib/angular/angular-route.js'
+]
+
+ADD_SCSS_FILES = [
+    'dashboard/barbican/barbican.scss'
+]
+
+AUTO_DISCOVER_STATIC_FILES = True
