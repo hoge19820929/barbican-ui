@@ -1,4 +1,34 @@
+- job:
+    name: barbican-ui-integration-tests
+    parent: horizon-integration-tests
+    required-projects:
+      - name: openstack/horizon
+      - name: openstack/barbican
+      - name: openstack/barbican-ui
+    roles:
+      - zuul: openstack-infra/devstack
+      - zuul: openstack/horizon
+    irrelevant-files:
+      - ^.*\.rst$
+      - ^doc/.*$
+      - ^releasenotes/.*$
+    vars:
+      devstack_plugins:
+        barbican: https://opendev.org/openstack/barbican
+        barbican-ui: https://github.com/hoge19820929/barbican-ui
+      devstack_services:
+        horizon: true
+      tox_envlist: integration
+
 - project:
-    queue: barbican
     templates:
+      - check-requirements
+      - horizon-non-primary-django-jobs
+      - horizon-nodejs-jobs
+      - openstack-python3-jobs-horizon
       - publish-openstack-docs-pti
+      - release-notes-jobs-python3
+    check:
+      jobs:
+        - barbican-ui-integration-tests:
+            voting: false
