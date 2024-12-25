@@ -20,17 +20,3 @@ PANEL_GROUP_NAME = _('Barbican')
 PANEL_GROUP_DASHBOARD = 'project'
 
 ADD_INSTALLED_APPS = ['barbican_ui']
-
-ADD_ANGULAR_MODULES = [
-    'horizon.dashboard.barbican'
-]
-
-ADD_JS_FILES = [
-    'horizon/lib/angular/angular-route.js'
-]
-
-ADD_SCSS_FILES = [
-    'dashboard/barbican/barbican.scss'
-]
-
-AUTO_DISCOVER_STATIC_FILES = True

@@ -19,3 +19,17 @@ PANEL_DASHBOARD = 'project'
 
 # Python panel class of the PANEL to be added.
 ADD_PANEL = 'barbican_ui.content.secrets.panel.Secrets'
+
+ADD_ANGULAR_MODULES = [
+    'horizon.dashboard.barbican'
+]
+
+ADD_JS_FILES = [
+    'horizon/lib/angular/angular-route.js'
+]
+
+ADD_SCSS_FILES = [
+    'dashboard/barbican/barbican.scss'
+]
+
+AUTO_DISCOVER_STATIC_FILES = True
