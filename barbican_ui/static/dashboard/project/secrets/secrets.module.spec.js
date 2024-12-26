@@ -14,9 +14,9 @@
 (function() {
   'use strict';
 
-  describe('horizon.dashboard.barbican.secrets', function() {
+  describe('horizon.dashboard.project.secrets', function() {
     it('should exist', function() {
-      expect(angular.module('horizon.dashboard.barbican.secrets')).toBeDefined();
+      expect(angular.module('horizon.dashboard.project.secrets')).toBeDefined();
     });
   });
 

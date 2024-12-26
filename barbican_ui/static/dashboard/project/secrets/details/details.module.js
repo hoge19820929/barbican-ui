@@ -17,13 +17,13 @@
 
   /**
    * @ngdoc overview
-   * @ngname horizon.dashboard.barbican.secrets.details
+   * @ngname horizon.dashboard.project.secrets.details
    *
    * @description
    * Provides details features for Secret.
    */
   angular
-    .module('horizon.dashboard.barbican.secrets.details', [
+    .module('horizon.dashboard.project.secrets.details', [
       'horizon.app.core',
       'horizon.framework.conf'
     ])
@@ -31,8 +31,8 @@
 
   registerDetails.$inject = [
     'horizon.app.core.openstack-service-api.barbican',
-    'horizon.dashboard.barbican.secrets.basePath',
-    'horizon.dashboard.barbican.secrets.resourceType',
+    'horizon.dashboard.project.secrets.basePath',
+    'horizon.dashboard.project.secrets.resourceType',
     'horizon.framework.conf.resource-type-registry.service'
   ];
 

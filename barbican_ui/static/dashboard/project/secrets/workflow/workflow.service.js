@@ -17,12 +17,12 @@
 
   /**
    * @ngdoc workflow
-   * @name horizon.dashboard.barbican.secrets.workflow
+   * @name horizon.dashboard.project.secrets.workflow
    * @description Service for the create/update workflow
    */
   angular
-    .module('horizon.dashboard.barbican.secrets')
-    .factory('horizon.dashboard.barbican.secrets.workflow', workflow);
+    .module('horizon.dashboard.project.secrets')
+    .factory('horizon.dashboard.project.secrets.workflow', workflow);
 
   workflow.$inject = [
     'horizon.dashboard.barbican.basePath',

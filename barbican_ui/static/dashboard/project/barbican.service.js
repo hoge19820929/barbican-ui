@@ -39,7 +39,7 @@
     // Secrets
 
     function getSecret(id) {
-      return apiService.get('/api/barbican/secrets/' + id)
+      return apiService.get('/api/project/secrets/' + id)
         .error(function() {
           var msg = gettext('Unable to retrieve the Secret with id: %(id)s.');
           toastService.add('error', interpolate(msg, {id: id}, true));
@@ -47,14 +47,14 @@
     }
 
     function getSecrets() {
-      return apiService.get('/api/barbican/secrets/')
+      return apiService.get('/api/project/secrets/')
         .error(function() {
           toastService.add('error', gettext('Unable to retrieve the Secrets.'));
         });
     }
 
     function createSecret(params) {
-      return apiService.put('/api/barbican/secrets/', params)
+      return apiService.put('/api/project/secrets/', params)
         .error(function() {
           var msg = gettext('Unable to create the Secret with name: %(name)s');
           toastService.add('error', interpolate(msg, { name: params.name }, true));
@@ -62,7 +62,7 @@
     }
 
     function updateSecret(id, params) {
-      return apiService.post('/api/barbican/secrets/' + id, params)
+      return apiService.post('/api/project/secrets/' + id, params)
         .error(function() {
           var msg = gettext('Unable to update the Secret with id: %(id)s');
           toastService.add('error', interpolate(msg, { id: params.id }, true));
@@ -70,7 +70,7 @@
     }
 
     function deleteSecret(id, suppressError) {
-      var promise = apiService.delete('/api/barbican/secrets/', [id]);
+      var promise = apiService.delete('/api/project/secrets/', [id]);
       return suppressError ? promise : promise.error(function() {
         var msg = gettext('Unable to delete the Secret with id: %(id)s');
         toastService.add('error', interpolate(msg, { id: id }, true));

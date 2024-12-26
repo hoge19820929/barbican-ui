@@ -17,9 +17,9 @@
   describe('Secrets service', function() {
     var service;
     beforeEach(module('horizon.app.core.openstack-service-api'));
-    beforeEach(module('horizon.dashboard.barbican.secrets'));
+    beforeEach(module('horizon.dashboard.project.secrets'));
     beforeEach(inject(function($injector) {
-      service = $injector.get('horizon.dashboard.barbican.secrets.service');
+      service = $injector.get('horizon.dashboard.project.secrets.service');
     }));
 
     describe('getPromise', function() {

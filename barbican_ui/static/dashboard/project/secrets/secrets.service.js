@@ -15,8 +15,8 @@
 (function() {
   "use strict";
 
-  angular.module('horizon.dashboard.barbican.secrets')
-    .factory('horizon.dashboard.barbican.secrets.service',
+  angular.module('horizon.dashboard.project.secrets')
+    .factory('horizon.dashboard.project.secrets.service',
       service);
 
   service.$inject = [
@@ -27,7 +27,7 @@
 
   /*
    * @ngdoc factory
-   * @name horizon.dashboard.barbican.secrets.service
+   * @name horizon.dashboard.project.secrets.service
    *
    * @description
    * This service provides functions that are used through the Secrets

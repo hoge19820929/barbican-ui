@@ -17,14 +17,14 @@
 
   /**
    * @ngdoc overview
-   * @name horizon.dashboard.barbican.secrets.create.service
-   * @description Service for the secret create modal
+   * @name horizon.dashboard.project.secrets.update.service
+   * @description Service for the secret update modal
    */
   angular
-    .module('horizon.dashboard.barbican.secrets')
-    .factory('horizon.dashboard.barbican.secrets.create.service', createService);
+    .module('horizon.dashboard.project.secrets')
+    .factory('horizon.dashboard.project.secrets.update.service', updateService);
 
-  createService.$inject = [
+  updateService.$inject = [
     '$location',
     'horizon.app.core.openstack-service-api.barbican',
     'horizon.app.core.openstack-service-api.policy',
@@ -32,19 +32,19 @@
     'horizon.framework.util.i18n.gettext',
     'horizon.framework.util.q.extensions',
     'horizon.framework.widgets.toast.service',
-    'horizon.dashboard.barbican.secrets.events',
-    'horizon.dashboard.barbican.secrets.model',
-    'horizon.dashboard.barbican.secrets.resourceType',
-    'horizon.dashboard.barbican.secrets.workflow'
+    'horizon.dashboard.project.secrets.events',
+    'horizon.dashboard.project.secrets.model',
+    'horizon.dashboard.project.secrets.resourceType',
+    'horizon.dashboard.project.secrets.workflow'
   ];
 
-  function createService(
+  function updateService(
     $location, api, policy, actionResult, gettext, $qExtensions,
     toast, events, model, resourceType, workflow
   ) {
 
     var message = {
-      success: gettext('Secret %s was successfully created.')
+      success: gettext('Secret %s was successfully updated.')
     };
 
     var service = {
@@ -52,6 +52,8 @@
       perform: perform,
       allowed: allowed
     };
+
+    var id;
 
     return service;
 
@@ -68,10 +70,27 @@
     function perform(selected, newScope) {
       // modal title, buttons
       var title, submitText, submitIcon;
-      title = gettext("Create Secret");
-      submitText = gettext("Create");
+      title = gettext("Update Secret");
+      submitText = gettext("Update");
       submitIcon = "fa fa-check";
       model.init();
+
+      // load current data
+      id = selected.id;
+      var deferred = api.getSecret(id);
+      deferred.then(onLoad);
+
+      function onLoad(response) {
+        model.spec.id = response.data.id;
+        model.spec.name = response.data.name;
+        model.spec.description = response.data.description;
+        model.spec.enabled = response.data.enabled;
+        model.spec.size = response.data.size;
+        model.spec.temperature = response.data.temperature;
+        model.spec.base = response.data.base;
+        model.spec.flavor = response.data.flavor;
+        model.spec.topping = response.data.topping;
+      }
 
       var result = workflow.init(title, submitText, submitIcon, model.spec);
       return result.then(submit);
@@ -80,21 +99,21 @@
     function allowed() {
       return $qExtensions.booleanAsPromise(true);
       // fixme: if you need to set policy, change as follow
-      //return policy.ifAllowed({ rules: [['secret', 'create_secret']] });
+      //return policy.ifAllowed({ rules: [['secret', 'update_secret']] });
     }
 
     function submit() {
       model.cleanProperties();
-      return api.createSecret(model.spec).then(success);
+      return api.updateSecret(id, model.spec).then(success);
     }
 
     function success(response) {
       response.data.id = response.data.uuid;
       toast.add('success', interpolate(message.success, [response.data.id]));
       var result = actionResult.getActionResult()
-                   .created(resourceType, response.data.id);
-      if (result.result.failed.length === 0 && result.result.created.length > 0) {
-        $location.path('/barbican/secrets');
+                   .updated(resourceType, response.data.id);
+      if (result.result.failed.length === 0 && result.result.updated.length > 0) {
+        $location.path('/project/secrets');
       } else {
         return result.result;
       }

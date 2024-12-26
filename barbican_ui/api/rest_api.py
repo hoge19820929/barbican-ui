@@ -31,7 +31,7 @@ def change_to_id(obj):
 @urls.register
 class Secret(generic.View):
     """API for retrieving a single Secret"""
-    url_regex = r'barbican/secrets/(?P<id>[^/]+)$'
+    url_regex = r'project/secrets/(?P<id>[^/]+)$'
 
     @rest_utils.ajax()
     def get(self, request, id):
@@ -46,14 +46,14 @@ class Secret(generic.View):
         """
         secret = client.secret_update(request, id, **request.DATA)
         return rest_utils.CreatedResponse(
-            '/api/barbican/secret/%s' % secret.uuid,
+            '/api/project/secret/%s' % secret.uuid,
             secret.to_dict())
 
 
 @urls.register
 class Secrets(generic.View):
     """API for Secrets"""
-    url_regex = r'barbican/secrets/$'
+    url_regex = r'project/secrets/$'
 
     @rest_utils.ajax()
     def get(self, request):
@@ -82,5 +82,5 @@ class Secrets(generic.View):
         """
         secret = client.secret_create(request, **request.DATA)
         return rest_utils.CreatedResponse(
-            '/api/barbican/secret/%s' % secret.uuid,
+            '/api/project/secret/%s' % secret.uuid,
             secret.to_dict())

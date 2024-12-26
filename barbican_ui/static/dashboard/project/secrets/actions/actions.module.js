@@ -17,13 +17,13 @@
 
   /**
    * @ngdoc overview
-   * @ngname horizon.dashboard.barbican.secrets.actions
+   * @ngname horizon.dashboard.project.secrets.actions
    *
    * @description
    * Provides all of the actions for Secrets.
    */
   angular
-    .module('horizon.dashboard.barbican.secrets.actions', [
+    .module('horizon.dashboard.project.secrets.actions', [
       'horizon.framework',
       'horizon.dashboard.barbican'
     ])
@@ -32,10 +32,10 @@
   registerSecretActions.$inject = [
     'horizon.framework.conf.resource-type-registry.service',
     'horizon.framework.util.i18n.gettext',
-    'horizon.dashboard.barbican.secrets.create.service',
-    'horizon.dashboard.barbican.secrets.update.service',
-    'horizon.dashboard.barbican.secrets.delete.service',
-    'horizon.dashboard.barbican.secrets.resourceType'
+    'horizon.dashboard.project.secrets.create.service',
+    'horizon.dashboard.project.secrets.update.service',
+    'horizon.dashboard.project.secrets.delete.service',
+    'horizon.dashboard.project.secrets.resourceType'
   ];
 
   function registerSecretActions (

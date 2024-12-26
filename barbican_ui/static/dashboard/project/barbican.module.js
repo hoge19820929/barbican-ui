@@ -25,7 +25,7 @@
   /* eslint-disable no-unused-vars */
   angular
     .module('horizon.dashboard.barbican', [
-      'horizon.dashboard.barbican.secrets',
+      'horizon.dashboard.project.secrets',
       'ngRoute'
     ])
     .config(config);
@@ -33,7 +33,7 @@
   config.$inject = ['$provide', '$windowProvider', '$routeProvider'];
 
   function config($provide, $windowProvider, $routeProvider) {
-    var path = $windowProvider.$get().STATIC_URL + 'dashboard/barbican/';
+    var path = $windowProvider.$get().STATIC_URL + 'dashboard/project/';
     $provide.constant('horizon.dashboard.barbican.basePath', path);
   }
   /* eslint-disable no-unused-vars */

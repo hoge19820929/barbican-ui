@@ -17,41 +17,41 @@
 
   /**
    * @ngdoc overview
-   * @name horizon.dashboard.barbican.secrets
+   * @name horizon.dashboard.project.secrets
    * @ngModule
    * @description
    * Provides all the services and widgets require to display the Secret
    * panel
    */
   angular
-    .module('horizon.dashboard.barbican.secrets', [
+    .module('horizon.dashboard.project.secrets', [
       'ngRoute',
-      'horizon.dashboard.barbican.secrets.actions',
-      'horizon.dashboard.barbican.secrets.details'
+      'horizon.dashboard.project.secrets.actions',
+      'horizon.dashboard.project.secrets.details'
     ])
-    .constant('horizon.dashboard.barbican.secrets.events', events())
-    .constant('horizon.dashboard.barbican.secrets.resourceType', 'OS::Barbican::Secret')
+    .constant('horizon.dashboard.project.secrets.events', events())
+    .constant('horizon.dashboard.project.secrets.resourceType', 'OS::Barbican::Secret')
     .run(run)
     .config(config);
 
   /**
    * @ngdoc constant
-   * @name horizon.dashboard.barbican.secrets.events
+   * @name horizon.dashboard.project.secrets.events
    * @description A list of events used by Secret
    * @returns {Object} events
    */
   function events() {
     return {
-      CREATE_SUCCESS: 'horizon.dashboard.barbican.secrets.CREATE_SUCCESS',
-      DELETE_SUCCESS: 'horizon.dashboard.barbican.secrets.DELETE_SUCCESS'
+      CREATE_SUCCESS: 'horizon.dashboard.project.secrets.CREATE_SUCCESS',
+      DELETE_SUCCESS: 'horizon.dashboard.project.secrets.DELETE_SUCCESS'
     };
   }
 
   run.$inject = [
     'horizon.framework.conf.resource-type-registry.service',
-    'horizon.dashboard.barbican.secrets.service',
-    'horizon.dashboard.barbican.secrets.basePath',
-    'horizon.dashboard.barbican.secrets.resourceType'
+    'horizon.dashboard.project.secrets.service',
+    'horizon.dashboard.project.secrets.basePath',
+    'horizon.dashboard.project.secrets.resourceType'
   ];
 
   function run(registry, service, basePath, resourceType) {
@@ -62,7 +62,7 @@
     // set default url for index view. this will be used for reproducing
     // sidebar and breadcrumb when refreshing or accessing directly
     // details view.
-    .setDefaultIndexUrl('/barbican/secrets/')
+    .setDefaultIndexUrl('/project/secrets/')
     // specify items for table row items, summary view and details view
     .setProperties(properties())
     // get items for table
@@ -164,9 +164,9 @@
    * @returns {undefined} Returns nothing
    */
   function config($provide, $windowProvider, $routeProvider) {
-    var path = $windowProvider.$get().STATIC_URL + 'dashboard/barbican/secrets/';
-    $provide.constant('horizon.dashboard.barbican.secrets.basePath', path);
-    $routeProvider.when('/barbican/secrets', {
+    var path = $windowProvider.$get().STATIC_URL + 'dashboard/project/secrets/';
+    $provide.constant('horizon.dashboard.project.secrets.basePath', path);
+    $routeProvider.when('/project/secrets', {
       templateUrl: path + 'panel.html'
     });
   }

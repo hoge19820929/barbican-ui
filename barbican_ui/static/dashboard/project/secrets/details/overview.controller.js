@@ -15,8 +15,8 @@
   "use strict";
 
   angular
-    .module('horizon.dashboard.barbican.secrets')
-    .controller('horizon.dashboard.barbican.secrets.OverviewController', controller);
+    .module('horizon.dashboard.project.secrets')
+    .controller('horizon.dashboard.project.secrets.OverviewController', controller);
 
   controller.$inject = [
     '$scope'

@@ -17,12 +17,12 @@
 
   /**
    * @ngdoc model
-   * @name horizon.dashboard.barbican.secrets.model
+   * @name horizon.dashboard.project.secrets.model
    * @description Service for the secret model
    */
   angular
-    .module('horizon.dashboard.barbican.secrets')
-    .factory('horizon.dashboard.barbican.secrets.model', model);
+    .module('horizon.dashboard.project.secrets')
+    .factory('horizon.dashboard.project.secrets.model', model);
 
   model.$inject = [
   ];

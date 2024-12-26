@@ -17,15 +17,15 @@
 
   /**
    * @ngDoc factory
-   * @name horizon.dashboard.barbican.secrets.delete.service
+   * @name horizon.dashboard.project.secrets.delete.service
    * @Description
    * Brings up the delete secrets confirmation modal dialog.
    * On submit, delete selected resources.
    * On cancel, do nothing.
    */
   angular
-    .module('horizon.dashboard.barbican.secrets')
-    .factory('horizon.dashboard.barbican.secrets.delete.service', deleteService);
+    .module('horizon.dashboard.project.secrets')
+    .factory('horizon.dashboard.project.secrets.delete.service', deleteService);
 
   deleteService.$inject = [
     '$location',
@@ -39,8 +39,8 @@
     'horizon.framework.widgets.modal.deleteModalService',
     'horizon.framework.widgets.table.events',
     'horizon.framework.widgets.toast.service',
-    'horizon.dashboard.barbican.secrets.resourceType',
-    'horizon.dashboard.barbican.secrets.events'
+    'horizon.dashboard.project.secrets.resourceType',
+    'horizon.dashboard.project.secrets.events'
   ];
 
   function deleteService(
@@ -131,7 +131,7 @@
         result.failed(resourceType, getEntity(item).id);
       });
       if (result.result.failed.length === 0 && result.result.deleted.length > 0) {
-        $location.path('/barbican/secrets');
+        $location.path('/project/secrets');
       } else {
         $rootScope.$broadcast(tableEvents.CLEAR_SELECTIONS);
         return result.result;
