@@ -21,15 +21,30 @@ PANEL_DASHBOARD = 'project'
 ADD_PANEL = 'barbican_ui.content.secrets.panel.Secrets'
 
 ADD_ANGULAR_MODULES = [
-    'horizon.dashboard.barbican'
+    'horizon.dashboard.barbican.secrets'
 ]
 
 ADD_JS_FILES = [
-    'horizon/lib/angular/angular-route.js'
+    'horizon/lib/angular/angular-route.js',
+    'dashboard/barbican/barbican.module.js',
+    'dashboard/barbican/barbican.service.js',
+    'dashboard/barbican/secrets/secrets.module.js',
+    'dashboard/barbican/secrets/secrets.service.js',
+    'dashboard/barbican/secrets/actions/actions.module.js',
+    'dashboard/barbican/secrets/actions/create.service.js',
+    'dashboard/barbican/secrets/actions/delete.service.js',
+    'dashboard/barbican/secrets/actions/update.service.js',
+    'dashboard/barbican/secrets/details/details.module.js',
+    'dashboard/barbican/secrets/details/overview.controller.js',
+    'dashboard/barbican/secrets/workflow/secret-model.js',
+    'dashboard/barbican/secrets/workflow/workflow.service.js'
 ]
 
 ADD_SCSS_FILES = [
-    'dashboard/barbican/barbican.scss'
+    'horizon/lib/bootstrap_scss/scss/_bootstrap.scss',
+    'horizon/lib/font_awesome/scss/font-awesome.scss',
+    'dashboard/barbican/barbican.scss',
+    'dashboard/barbican/secrets/secrets.scss'
 ]
 
 AUTO_DISCOVER_STATIC_FILES = True
