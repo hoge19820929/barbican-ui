@@ -63,6 +63,7 @@
     // sidebar and breadcrumb when refreshing or accessing directly
     // details view.
     .setDefaultIndexUrl('/project/secrets/')
+    /*
     // specify items for table row items, summary view and details view
     .setProperties(properties())
     // get items for table
@@ -130,9 +131,12 @@
       'label': gettext('ID'),
       'name': 'id',
       'singleton': true
-    });
+    })
+    */
+    ;
   }
 
+  /*
   function properties() {
     return {
       id: { label: gettext('ID'), filters: ['noValue'] },
@@ -148,6 +152,7 @@
       updated_at: { label: gettext('Updated'), filters: ['simpleDate', 'noValue'] }
     };
   }
+  */
 
   config.$inject = [
     '$provide',

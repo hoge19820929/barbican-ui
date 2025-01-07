@@ -28,6 +28,7 @@ ADD_JS_FILES = [
     'horizon/lib/angular/angular-route.js',
     'dashboard/project/barbican.module.js',
     'dashboard/project/barbican.service.js',
+    'dashboard/project/secrets/secrets.controller.js',
     'dashboard/project/secrets/secrets.module.js',
     'dashboard/project/secrets/secrets.service.js',
     'dashboard/project/secrets/actions/actions.module.js',

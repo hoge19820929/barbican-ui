@@ -10,11 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from django.urls import re_path
-from django.utils.translation import gettext_lazy as _
-from horizon.browsers import views
+from django.urls import path
+from . import views
 
-title = _("Secrets")
 urlpatterns = [
-    re_path(r'^$', views.AngularIndexView.as_view(title=title), name='index'),
+    path('secrets/', views.list_secrets, name='list_secrets'),
+    path('secrets/create_aes_key/', views.create_aes_key, name='create_aes_key'),
 ]
