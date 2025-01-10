@@ -14,6 +14,6 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # path('secrets/', views.list_secrets, name='list_secrets'),
+    path('secrets/', views.list_secrets, name='list_secrets'),
     path('secrets/create_aes_key/', views.create_aes_key, name='create_aes_key'),
 ]
