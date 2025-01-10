@@ -1,87 +1,48 @@
-from django.shortcuts import render, redirect
-from django.contrib import messages
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from openstack import connection
-from .forms import CreateKeyForm
+from openstack_dashboard.api import keystone
+import json
 
-def create_key(request):
-    """
-    AES 256ビット鍵をBarbicanで作成するビュー
-    """
+@csrf_exempt
+def create_aes_key(request):
+    """Creates a 256-bit AES key using Horizon session credentials."""
     if request.method == 'POST':
-        form = CreateKeyForm(request.POST)
-        if form.is_valid():
-            try:
-                # Horizonの認証情報を使用
-                auth_url = request.user.endpoint
-                user_name = request.user.username
-                password = request.session.get('password')  # セッションからパスワード取得
+        try:
+            # Horizonセッションから認証情報を取得
+            auth_url = keystone.get_auth_url()
+            user_token = request.user.token.id
+            project_id = request.user.tenant_id
 
-                # Barbican接続
-                conn = connection.Connection(
-                    auth_url=auth_url,
-                    username=user_name,
-                    password=password,
-                    project_name=request.user.project_name,
-                    user_domain_name='default',
-                    project_domain_name='default'
-                )
+            # ユーザ入力を取得
+            data = json.loads(request.body)
+            key_name = data.get('name', 'AES-256-Key')  # デフォルト値を設定
+            key_description = data.get('description', 'No description provided.')
 
-                # フォームデータ取得
-                key_name = form.cleaned_data['key_name']
-                key_description = form.cleaned_data['key_description']
+            # OpenStack接続を初期化
+            conn = connection.Connection(
+                auth_url=auth_url,
+                token=user_token,
+                project_id=project_id
+            )
+            barbican = conn.key_manager
 
-                # 鍵作成
-                key_data = b'0' * 32  # 256ビット（32バイト）の鍵データ
-                conn.key_manager.create_secret(
-                    name=key_name,
-                    payload=key_data,
-                    payload_content_type='application/octet-stream',
-                    algorithm='AES',
-                    bit_length=256,
-                    mode='cbc',
-                    description=key_description
-                )
+            # 256ビット鍵データを生成
+            key_data = b'\x00' * 32
 
-                messages.success(request, f"鍵 '{key_name}' を作成しました。")
-                return redirect('barbican_ui:list_secrets')
-            except Exception as e:
-                messages.error(request, f"鍵作成時にエラー: {e}")
-    else:
-        form = CreateKeyForm()
+            # 鍵をBarbicanに作成
+            secret = barbican.secrets.create(
+                name=key_name,
+                payload=key_data,
+                payload_content_type='application/octet-stream',
+                algorithm='AES',
+                bit_length=256,
+                mode='cbc',
+                description=key_description
+            )
+            secret.store()
 
-    return render(request, 'barbican_ui/create_key.html', {'form': form})
-
-
-def list_secrets(request):
-    """
-    Barbicanから鍵の一覧を取得して表示するビュー
-    """
-    try:
-        # Horizonの認証情報を利用
-        auth_url = request.user.endpoint
-        user_name = request.user.username
-        password = request.session.get('password')
-
-        # Barbican接続
-        conn = connection.Connection(
-            auth_url=auth_url,
-            username=user_name,
-            password=password,
-            project_name=request.user.project_name,
-            user_domain_name='default',
-            project_domain_name='default'
-        )
-
-        # 鍵一覧取得
-        secrets = conn.key_manager.secrets()
-
-        # 鍵データリスト作成
-        secret_list = [{
-            'name': secret.name,
-            'id': secret.id,
-            'status': secret.status
-        } for secret in secrets]
-
-        return render(request, 'barbican_ui/list_secrets.html', {'secrets': secret_list})
-    except Exception as e:
-        return render(request, 'barbican_ui/list_secrets.html', {'error': str(e)})
+            return JsonResponse({"message": f"AES key '{key_name}' created successfully!"})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+    return JsonResponse({"error": "Invalid request method."}, status=405)

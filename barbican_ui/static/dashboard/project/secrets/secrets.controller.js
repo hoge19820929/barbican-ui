@@ -1,42 +1,40 @@
-(function () {
-  'use strict';
-
-  angular
-    .module('horizon.dashboard.project.secrets')
-    .controller('BarbicanController', BarbicanController);
-
-  BarbicanController.$inject = ['barbicanService'];
-
-  function BarbicanController(barbicanService) {
-    var ctrl = this;
-
-    ctrl.keyData = {
-      key_name: '',
-      key_description: ''
-    };
-
-    ctrl.secrets = [];
-
-    ctrl.createKey = function () {
-      barbicanService.createKey(ctrl.keyData)
-        .then(function () {
-          alert('鍵を作成しました');
-        })
-        .catch(function (error) {
-          console.error('鍵作成エラー', error);
+(function() {
+    'use strict';
+  
+    angular
+      .module('horizon.dashboard.project.secrets')
+      .controller('SecretsController', SecretsController);
+  
+    SecretsController.$inject = ['barbicanService'];
+  
+    function SecretsController(barbicanService) {
+      var ctrl = this;
+  
+      ctrl.secrets = [];
+      ctrl.createKeyMessage = '';
+      ctrl.keyName = ''; // ユーザ入力用
+      ctrl.keyDescription = ''; // ユーザ入力用
+/*  
+      ctrl.loadSecrets = function() {
+        barbicanService.listSecrets().then(function(data) {
+          ctrl.secrets = data;
         });
-    };
-
-    ctrl.listSecrets = function () {
-      barbicanService.listSecrets()
-        .then(function (response) {
-          ctrl.secrets = response.data;
-        })
-        .catch(function (error) {
-          console.error('鍵一覧取得エラー', error);
+      };
+*/  
+      ctrl.createAESKey = function() {
+        barbicanService.createAESKey(
+          ctrl.keyName,
+          ctrl.keyDescription
+        ).then(function(message) {
+          ctrl.createKeyMessage = message;
+          ctrl.keyName = ''; // 入力クリア
+          ctrl.keyDescription = ''; // 入力クリア
+          //ctrl.loadSecrets(); // 鍵リストを更新
         });
-    };
-
-    ctrl.listSecrets(); // 初期ロード時に鍵一覧を取得
-  }
-})();
+      };
+  
+      // コントローラー初期化時に鍵一覧をロード
+      //ctrl.loadSecrets();
+    }
+  })();
+  

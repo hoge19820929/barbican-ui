@@ -30,15 +30,15 @@ ADD_JS_FILES = [
     'dashboard/project/barbican.service.js',
     'dashboard/project/secrets/secrets.controller.js',
     'dashboard/project/secrets/secrets.module.js',
-    'dashboard/project/secrets/secrets.service.js'
-#    'dashboard/project/secrets/actions/actions.module.js',
-#    'dashboard/project/secrets/actions/create.service.js',
-#    'dashboard/project/secrets/actions/delete.service.js',
-#    'dashboard/project/secrets/actions/update.service.js',
-#    'dashboard/project/secrets/details/details.module.js',
-#    'dashboard/project/secrets/details/overview.controller.js',
-#    'dashboard/project/secrets/workflow/secret-model.js',
-#    'dashboard/project/secrets/workflow/workflow.service.js'
+    'dashboard/project/secrets/secrets.service.js',
+    'dashboard/project/secrets/actions/actions.module.js',
+    'dashboard/project/secrets/actions/create.service.js',
+    'dashboard/project/secrets/actions/delete.service.js',
+    'dashboard/project/secrets/actions/update.service.js',
+    'dashboard/project/secrets/details/details.module.js',
+    'dashboard/project/secrets/details/overview.controller.js',
+    'dashboard/project/secrets/workflow/secret-model.js',
+    'dashboard/project/secrets/workflow/workflow.service.js'
 ]
 
 ADD_SCSS_FILES = [

@@ -1,4 +1,4 @@
-(function () {
+(function() {
   'use strict';
 
   angular
@@ -8,19 +8,22 @@
   barbicanService.$inject = ['$http'];
 
   function barbicanService($http) {
-    var service = {
-      createKey: createKey,
-      listSecrets: listSecrets
+    return {
+      /*
+      listSecrets: function() {
+        return $http.get('/secrets/').then(function(response) {
+          return response.data.secrets;
+        });
+      },
+      */
+      createAESKey: function(keyName, keyDescription) {
+        return $http.post('/secrets/create_aes_key/', {
+          name: keyName,
+          description: keyDescription
+        }).then(function(response) {
+          return response.data.message;
+        });
+      }
     };
-
-    function createKey(data) {
-      return $http.post('/dashboard/barbican_ui/create-key/', data);
-    }
-
-    function listSecrets() {
-      return $http.get('/dashboard/barbican_ui/list-secrets/');
-    }
-
-    return service;
   }
 })();
