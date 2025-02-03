@@ -11,7 +11,7 @@ from . import api as project_api
 from . import forms as project_forms
 from . import tables as project_tables
 
-class IndexView(tables.PageTableMixin, tables.DataTableView):
+class IndexView(tables.PagedTableMixin, tables.DataTableView):
     table_class = project_tables.SecretsTable
     page_title = _("Secrets")
     template_name = 'project/secrets/index.html'
