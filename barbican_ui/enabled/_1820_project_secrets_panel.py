@@ -20,26 +20,6 @@ PANEL_DASHBOARD = 'project'
 # Python panel class of the PANEL to be added.
 ADD_PANEL = 'barbican_ui.content.secrets.panel.Secrets'
 
-ADD_ANGULAR_MODULES = [
-    'horizon.dashboard.project.secrets'
-]
-
-ADD_JS_FILES = [
-    'horizon/lib/angular/angular-route.js',
-    'dashboard/project/barbican.module.js',
-    'dashboard/project/barbican.service.js',
-    'dashboard/project/secrets/secrets.module.js',
-    'dashboard/project/secrets/secrets.service.js',
-    'dashboard/project/secrets/actions/actions.module.js',
-    'dashboard/project/secrets/actions/create.service.js',
-    'dashboard/project/secrets/actions/delete.service.js',
-    'dashboard/project/secrets/actions/update.service.js',
-    'dashboard/project/secrets/details/details.module.js',
-    'dashboard/project/secrets/details/overview.controller.js',
-    'dashboard/project/secrets/workflow/secret-model.js',
-    'dashboard/project/secrets/workflow/workflow.service.js'
-]
-
 ADD_SCSS_FILES = [
     'horizon/lib/bootstrap_scss/scss/_bootstrap.scss',
     'horizon/lib/font_awesome/scss/font-awesome.scss',
