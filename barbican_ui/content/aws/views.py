@@ -19,13 +19,14 @@ class IndexView(tables.PagedTableMixin, tables.DataTableView):
     def get_data(self):
         try:
             search_opts = self.get_filters()
-            secrets = project_api.get_secrets(self.request, **search_opts)
+            secrets = project_api.get_secrets(**search_opts)
 
             return secrets
         except Exception as e:
             exceptions.handle(self.request, _("Unable to retrieve secrets."))
             return []
 
+'''
 class CreateSecretView(forms.ModalFormView):
     template_name = 'project/aws/create.html'
     form_id = "create_secret"
@@ -34,3 +35,4 @@ class CreateSecretView(forms.ModalFormView):
     submit_url = reverse_lazy("horizon:project:aws:create")
     success_url = reverse_lazy('horizon:project:aws:index')
     page_title = _("Create Secret")
+'''

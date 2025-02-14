@@ -8,14 +8,18 @@ from . import api
 
 class SecretsFilterAction(tables.FilterAction):
     filter_type = 'server'
-    filter_choices = (('name', _('Secret Name ='), True, _('Case-sensitive')),
-                      ('status', _('Status ='), True),
-                      ('secret_id', _('Secret ID ='), True),
-                      ('algorithm', _('Algorithm ='), True),
-                      ('bit_length', _('Bit Length ='), True),
-                      ('mode', _('Mode ='), True),
-                      ('created_at', _('Created At ='), True),
-                      ('expires_at', _('Expires At ='), True))
+    filter_choices = (('alias', _('Alias ='), True),
+                      ('key_id', _('Key ID ='), True),
+                      ('key_state', _('Key State ='), True),
+                      ('key_type', _('Key Type ='), True),
+                      ('key_spec', _('Key Spec ='), True),
+                      ('key_usage', _('Key Usage ='), True),
+                      ('description', _('Description ='), True),
+                      ('aws_account', _('AWS Account ='), True),
+                      ('region', _('Region ='), True),
+                      ('origin', _('Origin ='), True),
+                      ('creation_date', _('Creation Date ='), True),
+                      ('expiration_date', _('Expiration Date ='), True))
 
 class CreateSecret(tables.LinkAction):
     name = "create"
@@ -23,6 +27,34 @@ class CreateSecret(tables.LinkAction):
     url = "horizon:project:aws:create"
     classes = ("ajax-modal",)
     icon = "plus"
+
+class RotateSecret(tables.BatchAction):
+    @staticmethod
+    def action_present(count):
+        return ngettext_lazy(
+            "Rotate Secret",
+            "Rotate Secrets",
+            count
+        )
+
+    @staticmethod
+    def action_past(count):
+        return ngettext_lazy(
+            "Rotate Secret",
+            "Rotate Secrets",
+            count
+        )
+    
+    name = "rotate"
+    verbose_name = _("Rotate Secret")
+    icon = "pencil"
+
+    def action(self, request, obj_id):
+        try:
+            alias = api.get_key_alias(obj_id)
+            api.byok_aws(request, alias, 'alias/' + alias, True)
+        except Exception:
+            exceptions.handle(request, _("Unable to rotate secrets."))
 
 class DeleteSecret(tables.DeleteAction):
     @staticmethod
@@ -41,24 +73,28 @@ class DeleteSecret(tables.DeleteAction):
             count
         )
     
-    def delete(self, request, secret_id):
+    def delete(self, request, id):
         try:
-            api.delete_secret(request, secret_id)
+            api.schedule_key_deletion(id)
         except Exception as e:
             exceptions.handle(request, _("Unable to delete secrets."))
 
 class SecretsTable(tables.DataTable):
 
-    name = tables.Column('name', verbose_name=_("Name"))
-    status = tables.Column('status', verbose_name=_("Status"))
-    secret_id = tables.Column('secret_id', verbose_name=_("Secret ID"))
-    algorithm = tables.Column('algorithm', verbose_name=_("Algorithm"))
-    bit_length = tables.Column('bit_length', verbose_name=_("Bit Length"))
-    mode = tables.Column('mode', verbose_name=_("Mode"))
-    created_at = tables.Column('created_at', verbose_name=_("Created At"))
-    expires_at = tables.Column('expires_at', verbose_name=_("Expires At"))
+    alias = tables.Column('alias', verbose_name=_("Alias"))
+    key_id = tables.Column('key_id', verbose_name=_("Key ID"))
+    key_state = tables.Column('key_state', verbose_name=_("Key State"))
+    key_type = tables.Column('key_type', verbose_name=_("Key Type"))
+    key_spec = tables.Column('key_spec', verbose_name=_("Key Spec"))
+    key_usage = tables.Column('key_usage', verbose_name=_("Key Usage"))
+    description = tables.Column('description', verbose_name=_("Description"))
+    aws_account = tables.Column('aws_account', verbose_name=_("AWS Account"))
+    region = tables.Column('region', verbose_name=_("Region"))
+    origin = tables.Column('origin', verbose_name=_("Origin"))
+    creation_date = tables.Column('creation_date', verbose_name=_("Creation Date"))
+    expiration_date = tables.Column('expiration_date', verbose_name=_("Expiration Date"))
 
     class Meta(object):
         name = "aws"
         verbose_name = _("AWS Secrets")
-        table_actions = (SecretsFilterAction, CreateSecret, DeleteSecret,)
+        table_actions = (SecretsFilterAction, RotateSecret, DeleteSecret,)

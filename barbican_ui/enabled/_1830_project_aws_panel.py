@@ -13,7 +13,7 @@
 # The slug of the panel to be added to HORIZON_CONFIG. Required.
 PANEL = 'aws'
 # The slug of the panel group the PANEL is associated with.
-PANEL_GROUP = 'barbican'
+PANEL_GROUP = 'kms'
 # The slug of the dashboard the PANEL associated with. Required.
 PANEL_DASHBOARD = 'project'
 

@@ -20,9 +20,9 @@ class CreateSecretForm(forms.SelfHandlingForm):
 
     def handle(self, request, data):
         try:
-            res = api.create_secret(request, data['name'])
+            api.byok_aws(request, data['name'], 'alias/' + data['name'])
             messages.success(request, _("Successfully create secret: %s") % data['name'])
-            return res
+            return True
         except Exception:
             exceptions.handle(request)
             return False

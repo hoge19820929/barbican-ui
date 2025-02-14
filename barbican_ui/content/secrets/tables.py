@@ -5,6 +5,7 @@ from horizon import exceptions
 from horizon import tables
 
 from . import api
+from barbican_ui.content.aws import api as aws_api
 
 class SecretsFilterAction(tables.FilterAction):
     filter_type = 'server'
@@ -23,6 +24,35 @@ class CreateSecret(tables.LinkAction):
     url = "horizon:project:secrets:create"
     classes = ("ajax-modal",)
     icon = "plus"
+
+class SendSecret(tables.BatchAction):
+    @staticmethod
+    def action_present(count):
+        return ngettext_lazy(
+            u"Send Key(AWS)",
+            u"Send Key(AWS)",
+            count
+        )
+
+    @staticmethod
+    def action_past(count):
+        return ngettext_lazy(
+            u"Send Key(AWS)",
+            u"Send Key(AWS)",
+            count
+        )
+    
+    name = "send"
+    verbose_name = _("Send Key(AWS)")
+    icon = "cloud-upload"
+
+    def action(self, request, obj_id):
+        try:
+            secret = self.table.get_object_by_id(obj_id)
+            alias = secret["name"]
+            aws_api.byok_aws(request, alias, 'alias/' + alias, False)
+        except Exception:
+            exceptions.handle(request, _("Unable to send key."))
 
 class DeleteSecret(tables.DeleteAction):
     @staticmethod
@@ -61,4 +91,4 @@ class SecretsTable(tables.DataTable):
     class Meta(object):
         name = "secrets"
         verbose_name = _("Secrets")
-        table_actions = (SecretsFilterAction, CreateSecret, DeleteSecret,)
+        table_actions = (SecretsFilterAction, CreateSecret, SendSecret, DeleteSecret,)

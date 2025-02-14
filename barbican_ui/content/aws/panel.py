@@ -19,5 +19,5 @@ from barbican_ui.api import rest_api  # noqa: F401
 
 
 class Secrets(horizon.Panel):
-    name = _("AWS Secrets")
+    name = _("AWS KMS")
     slug = "aws"
