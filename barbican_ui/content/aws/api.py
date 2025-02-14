@@ -72,7 +72,7 @@ def list_kms_keys():
         else:
             response = kms_client.list_keys()
 
-        keys.extend(response['keys'])
+        keys.extend(response['Keys'])
         next_marker = response.get('NextMarker')
         is_truncated = response['Truncated']
     
@@ -117,6 +117,7 @@ def fetch_key_data(key_id, kms_client):
     expiration_date = metadata.get('DeletionDate', '-')
 
     key_data = KeyData(
+        id=metadata['KeyId'],
         alias=', '.join(aliases) if aliases else '-',
         key_id=metadata['KeyId'],
         key_state=metadata['KeyState'],

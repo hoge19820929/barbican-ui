@@ -2,6 +2,9 @@ from openstack import connection
 from keystoneauth1.identity import v3
 from keystoneauth1 import session
 
+def id_uri_to_id(id_uri):
+    return id_uri.rsplit('/', 1)[-1]
+
 def create_session(request):
     auth_url = request.user.endpoint
     token = request.user.token.id
@@ -30,10 +33,10 @@ def create_secret(request, key_name):
     secret = conn.key_manager.create_secret(
         name=key_name,
         # TODO: payload setting
+        payload='0123456789abcdef0123456789abcdef',
         # TODO: algorithm selection
         algorithm='AES',
         bit_length=256,
-        mode='cbc'
     )
 
     return secret
@@ -42,6 +45,6 @@ def delete_secret(request, secret_id_uri):
     sess = create_session(request)
     conn = connection.Connection(session=sess)
 
-    secret_id = secret_id_uri.rsplit('/', 1)[-1]
+    secret_id = id_uri_to_id(secret_id_uri)
 
     conn.key_manager.delete_secret(secret_id)
