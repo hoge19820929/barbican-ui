@@ -34,7 +34,7 @@ def create_secret(request, key_name):
         name=key_name,
         # TODO: payload setting
         payload='0123456789abcdef0123456789abcdef',
-        payload_content_type='text/plain'
+        payload_content_type='text/plain',
         # TODO: algorithm selection
         algorithm='AES',
         bit_length=256,
