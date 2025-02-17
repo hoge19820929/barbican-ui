@@ -163,7 +163,7 @@ def kms_create_key():
         Origin='EXTERNAL',
         KeySpec='SYMMETRIC_DEFAULT'
     )
-    return response['KeyMetaData']['KeyId']
+    return response['KeyMetadata']['KeyId']
 
 def kms_get_import_parameters(key_id):
     kms_client = boto3.client('kms')
