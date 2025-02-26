@@ -157,16 +157,14 @@ def get_secrets(**filter):
 
     return key_data_list
 
-def kms_create_key():
-    kms_client = boto3.client('kms')
+def kms_create_key(kms_client):
     response = kms_client.create_key(
         Origin='EXTERNAL',
         KeySpec='SYMMETRIC_DEFAULT'
     )
     return response['KeyMetadata']['KeyId']
 
-def kms_get_import_parameters(key_id):
-    kms_client = boto3.client('kms')
+def kms_get_import_parameters(kms_client, key_id):
     response = kms_client.get_parameters_for_import(
         KeyId=key_id,
         WrappingAlgorithm='RSAES_OAEP_SHA_1',
@@ -186,8 +184,7 @@ def encrypt_key_material(plaintext_key, wrapping_key_blob):
     )
     return encrypt_key
 
-def import_encrypted_key_material(key_id, encrypted_key, import_token):
-    kms_client = boto3.client('kms')
+def import_encrypted_key_material(kms_client, key_id, encrypted_key, import_token):
     kms_client.import_key_material(
         KeyId=key_id,
         EncryptedKeyMaterial=encrypted_key,
@@ -196,15 +193,13 @@ def import_encrypted_key_material(key_id, encrypted_key, import_token):
         ValidTo=datetime(2025, 6, 17, 12, 0, 0, tzinfo=timezone.utc)
     )
 
-def create_alias(key_id, alias_name):
-    kms_client = boto3.client('kms')
+def create_alias(kms_client, key_id, alias_name):
     kms_client.create_alias(
         AliasName=alias_name,
         TargetKeyId=key_id
     )
 
-def tag_kms_key_with_secret_id(key_id, secret_id):
-    kms_client = boto3.client('kms')
+def tag_kms_key_with_secret_id(kms_client, key_id, secret_id):
     response = kms_client.tag_resource(
         KeyId=key_id,
         Tags=[
@@ -216,9 +211,22 @@ def tag_kms_key_with_secret_id(key_id, secret_id):
     )
     return response
 
-def rotate_kms_key(alias_name, new_id):
-    kms_client = boto3.client('kms')
+def add_description_to_key(kms_client, key_id, secret_id):
+    metadata = kms_client.describe_key(KeyId=key_id)['KeyMetadata']
 
+    current_description = metadata.get('Description', '')
+    if current_description:
+        new_description = f"{current_description} | secret_id: {secret_id}をインポート"
+    else:
+        new_description = f"secret_id: {secret_id}をインポート"
+    
+    response = kms_client.update_key_description(
+        KeyId=key_id,
+        Description=new_description
+    )
+    return response
+
+def rotate_kms_key(kms_client, alias_name, new_id):
     kms_client.update_alias(
         AliasName=alias_name,
         TargetKeyId=new_id
@@ -229,20 +237,23 @@ def byok_aws(request, key_name, alias_name, do_rotate=False):
     secret_id = secret.secret_id
     plaintext_key = secret.payload.encode()
 
-    key_id = kms_create_key()
+    kms_client = boto3.client('kms')
+    key_id = kms_create_key(kms_client)
 
     if do_rotate:
-        rotate_kms_key(alias_name, key_id)
+        rotate_kms_key(kms_client, alias_name, key_id)
     else:
-        create_alias(key_id, alias_name)
+        create_alias(kms_client, key_id, alias_name)
 
-    wrapping_key_blob, import_token = kms_get_import_parameters(key_id)
+    wrapping_key_blob, import_token = kms_get_import_parameters(kms_client, key_id)
 
     encrypt_key = encrypt_key_material(plaintext_key, wrapping_key_blob)
 
-    import_encrypted_key_material(key_id, encrypt_key, import_token)
+    import_encrypted_key_material(kms_client, key_id, encrypt_key, import_token)
 
-    tag_kms_key_with_secret_id(key_id, secret_id)
+    tag_kms_key_with_secret_id(kms_client, key_id, secret_id)
+
+    add_description_to_key(kms_client, key_id, secret_id)
 
 def schedule_key_deletion(key_id, waiting_period_days=7):
     kms_client = boto3.client('kms')
