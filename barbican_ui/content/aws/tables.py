@@ -52,7 +52,7 @@ class RotateSecret(tables.BatchAction):
     def action(self, request, obj_id):
         try:
             alias = api.get_key_alias(obj_id)
-            api.byok_aws(request, alias, 'alias/' + alias, True)
+            api.byok_aws(alias, 'alias/' + alias, True)
         except Exception:
             exceptions.handle(request, _("Unable to rotate secrets."))
 

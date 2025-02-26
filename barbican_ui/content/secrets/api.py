@@ -1,3 +1,4 @@
+from openstack import connect
 from openstack import connection
 from keystoneauth1.identity import v3
 from keystoneauth1 import session
@@ -19,17 +20,20 @@ def create_session(request):
     sess = session.Session(auth=auth)
     return sess
 
-def get_secrets(request, **kwargs):
+def create_connection(request):
     sess = create_session(request)
 
-    conn = connection.Connection(session=sess)
+    return connection.Connection(session=sess)
+
+def get_connection():
+    return connect(cloud='d_kms')
+
+def get_secrets(request, **kwargs):
+    conn = create_connection(request)
 
     return conn.key_manager.secrets(**kwargs)
 
-def create_secret(request, key_name):
-    sess = create_session(request)
-    conn = connection.Connection(session=sess)
-
+def create_secret(conn, key_name):
     secret = conn.key_manager.create_secret(
         name=key_name,
         # TODO: payload setting
@@ -43,8 +47,7 @@ def create_secret(request, key_name):
     return secret
 
 def delete_secret(request, secret_id_uri):
-    sess = create_session(request)
-    conn = connection.Connection(session=sess)
+    conn = create_connection(request)
 
     secret_id = id_uri_to_id(secret_id_uri)
 

@@ -52,7 +52,7 @@ class SendSecret(tables.BatchAction):
             for secret in secrets:
                 if secret.id == obj_id:
                     alias = secret.name
-            aws_api.byok_aws(request, alias, 'alias/' + alias, False)
+            aws_api.byok_aws(alias, 'alias/' + alias, False)
         except Exception:
             exceptions.handle(request, _("Unable to send key."))
 

@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from openstack import resource
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes, serialization
+from mistral_lib import actions
 
 from barbican_ui.content.secrets import api as barbican_api
 
@@ -232,8 +233,17 @@ def rotate_kms_key(kms_client, alias_name, new_id):
         TargetKeyId=new_id
     )
 
-def byok_aws(request, key_name, alias_name, do_rotate=False):
-    secret = barbican_api.create_secret(request, key_name)
+def byok_aws(key_name, alias_name, do_rotate=False):
+    conn = barbican_api.get_connection()
+    if do_rotate:
+        secret = barbican_api.create_secret(conn, key_name)
+    else:
+        secrets = conn.key_manager.secrets()
+        for sec in secrets:
+            if sec.name == key_name:
+                secret = sec
+                secret.payload = '0123456789abcdef0123456789abcdef'
+
     secret_id = secret.secret_id
     plaintext_key = secret.payload.encode()
 
@@ -263,3 +273,89 @@ def schedule_key_deletion(key_id, waiting_period_days=7):
         PendingWindowInDays=waiting_period_days
     )
     return response
+
+class BYOKAWSAction(actions.Action):
+    def __init__(self, key_name, alias_name, do_rotate=False):
+        self.key_name = key_name
+        self.alias_name = alias_name
+        self.do_rotate = do_rotate
+
+    def run(self):
+        byok_aws(self.key_name, self.alias_name, self.do_rotate)
+
+def register_action():
+    register_script = """
+from mistral_lib import actions
+class BYOKAWSAction(actions.Action):
+    def __init__(self, key_name, alias_name, do_rotate=False):
+        self.key_name = key_name
+        self.alias_name = alias_name
+        self.do_rotate = do_rotate
+
+    def run(self):
+        byok_aws(self.key_name, self.alias_name, self.do_rotate)
+
+byok_aws_action = BYOKAWSAction
+    """
+    exec(register_script)
+
+def get_workflow(conn, name):
+    workflows = conn.workflow.workflows()
+    for workflow in workflows:
+        if workflow.name == name:
+            return workflow
+    
+    return None
+
+def create_workflow(conn):
+    workflow_definition = """
+version: '2.0'
+rotate_workflow:
+  type: direct
+  input:
+    - key_name
+    - alias_name
+    - do_rotate
+  tasks:
+    execute_byok_aws:
+      action: byok_aws_action.BYOKAWSAction
+      input:
+        key_name: <% $.key_name %>
+        alias_name: <% $.alias_name %>
+        do_rotate: <% $.do_rotate %>
+      on-success: notify_execution
+    notify_execution:
+      action: std.echo output="byok_aws function executed successfully."
+    """
+    workflow = conn.workflow.create_workflow(
+        definition=workflow_definition,
+        scope='public',
+    )
+
+    return workflow
+
+def create_cron_trigger(conn, workflow_name, key_name, alias_name):
+    trigger = conn.workflow.create_cron_trigger(
+        name='scheduled_key_rotation',
+        workflow_name=workflow_name,
+        workflow_input={
+            "key_name": key_name,
+            "alias_name": alias_name,
+            "do_rotate": True
+        },
+        pattern='* * * * *' # 1分毎に実行
+    )
+    return trigger
+
+def auto_rotate_key(key_name, alias_name):
+    conn = barbican_api.get_connection()
+    register_action()
+    workflow_name = 'rotate_workflow'
+    workflow_created = get_workflow(conn, workflow_name)
+    if workflow_created is None:
+        workflow = create_workflow(conn)
+    else:
+        workflow = workflow_created
+    trigger = create_cron_trigger(conn, workflow.name, key_name, alias_name)
+
+    return trigger
