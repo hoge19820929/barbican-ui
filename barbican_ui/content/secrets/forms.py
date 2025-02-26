@@ -20,7 +20,8 @@ class CreateSecretForm(forms.SelfHandlingForm):
 
     def handle(self, request, data):
         try:
-            res = api.create_secret(request, data['name'])
+            conn = api.create_connection(request)
+            res = api.create_secret(conn, data['name'])
             messages.success(request, _("Successfully create secret: %s") % data['name'])
             return res
         except Exception:
