@@ -26,6 +26,15 @@ class IndexView(tables.PagedTableMixin, tables.DataTableView):
             exceptions.handle(self.request, _("Unable to retrieve secrets."))
             return []
 
+class AutoRotateSecretView(forms.ModalFormView):
+    template_name = 'project/aws/auto_rotate.html'
+    form_id = "auto_rotate"
+    form_class = project_forms.AutoRotateSecretForm
+    submit_label = _("Submit")
+    submit_url = reverse_lazy("horizon:project:aws:auto_rotate")
+    success_url = reverse_lazy('horizon:project:aws:index')
+    page_title = _("Auto Rotate Secret")
+
 '''
 class CreateSecretView(forms.ModalFormView):
     template_name = 'project/aws/create.html'

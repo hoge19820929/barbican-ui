@@ -1,3 +1,5 @@
+from django.urls import reverse
+from django.utils.http import urlencode
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext_lazy
 
@@ -56,6 +58,19 @@ class RotateSecret(tables.BatchAction):
         except Exception:
             exceptions.handle(request, _("Unable to rotate secrets."))
 
+class AutoRotateSecret(tables.LinkAction):
+    name = "auto_rotate"
+    verbose_name = _("Auto Rotate Secret")
+    url = "horizon:project:aws:auto_rotate"
+    classes = ("ajax-modal",)
+    icon = "plus"
+
+    def get_link_url(self, datum):
+        base_url = reverse(self.url)
+        params = urlencode({"alias": datum.alias})
+
+        return "?".join([base_url, params])
+
 class DeleteSecret(tables.DeleteAction):
     @staticmethod
     def action_present(count):
@@ -97,4 +112,5 @@ class SecretsTable(tables.DataTable):
     class Meta(object):
         name = "aws"
         verbose_name = _("AWS Secrets")
-        table_actions = (SecretsFilterAction, RotateSecret, DeleteSecret,)
+        table_actions = (SecretsFilterAction, DeleteSecret,)
+        row_actions = (AutoRotateSecret, RotateSecret,)

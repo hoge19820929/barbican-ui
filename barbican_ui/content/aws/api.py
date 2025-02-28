@@ -302,7 +302,7 @@ rotate_workflow:
     - do_rotate
   tasks:
     execute_byok_aws:
-      action: byok_aws_action.BYOKAWSAction
+      action: byok.aws
       input:
         key_name: <% $.key_name %>
         alias_name: <% $.alias_name %>
@@ -313,12 +313,12 @@ rotate_workflow:
     """
     workflow = conn.workflow.create_workflow(
         definition=workflow_definition,
-        scope='public',
+        scope='private',
     )
 
     return workflow
 
-def create_cron_trigger(conn, workflow_name, key_name, alias_name):
+def create_cron_trigger(conn, workflow_name, key_name, alias_name, pattern):
     trigger = conn.workflow.create_cron_trigger(
         name=f'key_rotation_{key_name}',
         workflow_name=workflow_name,
@@ -327,17 +327,17 @@ def create_cron_trigger(conn, workflow_name, key_name, alias_name):
             "alias_name": alias_name,
             "do_rotate": True
         },
-        pattern='* * * * *', # 1分毎に実行
+        pattern=pattern,
         remaining_executions=2  # 実行回数(開発中のみ設定)
     )
     return trigger
 
-def auto_rotate_key(key_name, alias_name):
+def auto_rotate_key(key_name, alias_name, pattern):
     conn = barbican_api.get_connection()
     workflow_name = 'rotate_workflow'
     workflow_created = get_workflow(conn, workflow_name)
     if workflow_created is None:
         create_workflow(conn)
-    trigger = create_cron_trigger(conn, workflow_name, key_name, alias_name)
+    trigger = create_cron_trigger(conn, workflow_name, key_name, alias_name, pattern)
 
     return trigger
