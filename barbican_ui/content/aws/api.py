@@ -280,7 +280,7 @@ class BYOKAWSAction(actions.Action):
         self.alias_name = alias_name
         self.do_rotate = do_rotate
 
-    def run(self):
+    def run(self, context):
         byok_aws(self.key_name, self.alias_name, self.do_rotate)
 
 def get_workflow(conn, name):
