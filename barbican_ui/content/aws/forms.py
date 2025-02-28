@@ -40,7 +40,7 @@ class AutoRotateSecretForm(forms.SelfHandlingForm):
                     max_length=255,
                     label=_('Alias'),
                     initial=self.request.GET.get('alias', ''),
-                    help_text=_('Name of the secret to create.'),
+                    help_text=_('Alias of the AWS KMS key.'),
                     regex=r"^[a-zA-Z][a-zA-Z0-9_.-]*$",
                     error_messages={'invalid':
                                     _('Name must start with a letter and may '
