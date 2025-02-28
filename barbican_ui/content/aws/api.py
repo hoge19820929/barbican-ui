@@ -283,22 +283,6 @@ class BYOKAWSAction(actions.Action):
     def run(self):
         byok_aws(self.key_name, self.alias_name, self.do_rotate)
 
-def register_action():
-    register_script = """
-from mistral_lib import actions
-class BYOKAWSAction(actions.Action):
-    def __init__(self, key_name, alias_name, do_rotate=False):
-        self.key_name = key_name
-        self.alias_name = alias_name
-        self.do_rotate = do_rotate
-
-    def run(self):
-        byok_aws(self.key_name, self.alias_name, self.do_rotate)
-
-byok_aws_action = BYOKAWSAction
-    """
-    exec(register_script)
-
 def get_workflow(conn, name):
     workflows = conn.workflow.workflows()
     for workflow in workflows:
@@ -349,7 +333,6 @@ def create_cron_trigger(conn, workflow_name, key_name, alias_name):
 
 def auto_rotate_key(key_name, alias_name):
     conn = barbican_api.get_connection()
-    register_action()
     workflow_name = 'rotate_workflow'
     workflow_created = get_workflow(conn, workflow_name)
     if workflow_created is None:
