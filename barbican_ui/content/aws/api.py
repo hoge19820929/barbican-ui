@@ -336,9 +336,7 @@ def auto_rotate_key(key_name, alias_name):
     workflow_name = 'rotate_workflow'
     workflow_created = get_workflow(conn, workflow_name)
     if workflow_created is None:
-        workflow = create_workflow(conn)
-    else:
-        workflow = workflow_created
-    trigger = create_cron_trigger(conn, workflow.name, key_name, alias_name)
+        create_workflow(conn)
+    trigger = create_cron_trigger(conn, workflow_name, key_name, alias_name)
 
     return trigger
