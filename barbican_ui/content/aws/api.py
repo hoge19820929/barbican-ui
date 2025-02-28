@@ -320,14 +320,15 @@ rotate_workflow:
 
 def create_cron_trigger(conn, workflow_name, key_name, alias_name):
     trigger = conn.workflow.create_cron_trigger(
-        name='scheduled_key_rotation',
+        name=f'key_rotation_{key_name}',
         workflow_name=workflow_name,
         workflow_input={
             "key_name": key_name,
             "alias_name": alias_name,
             "do_rotate": True
         },
-        pattern='* * * * *' # 1分毎に実行
+        pattern='* * * * *', # 1分毎に実行
+        remaining_executions=2  # 実行回数(開発中のみ設定)
     )
     return trigger
 
