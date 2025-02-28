@@ -34,6 +34,7 @@ def get_secrets(request, **kwargs):
     return conn.key_manager.secrets(**kwargs)
 
 def create_secret(conn, key_name):
+    # TODO: 要修正
     secret = conn.key_manager.create_secret(
         name=key_name,
         # TODO: payload setting

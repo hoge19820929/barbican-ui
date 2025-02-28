@@ -161,6 +161,7 @@ def get_secrets(**filter):
 def kms_create_key(kms_client):
     response = kms_client.create_key(
         Origin='EXTERNAL',
+        # TODO: 設定可能にする
         KeySpec='SYMMETRIC_DEFAULT'
     )
     return response['KeyMetadata']['KeyId']
@@ -168,12 +169,14 @@ def kms_create_key(kms_client):
 def kms_get_import_parameters(kms_client, key_id):
     response = kms_client.get_parameters_for_import(
         KeyId=key_id,
+        # TODO: 必要に応じて変更
         WrappingAlgorithm='RSAES_OAEP_SHA_1',
         WrappingKeySpec='RSA_2048'
     )
     return response['PublicKey'], response['ImportToken']
 
 def encrypt_key_material(plaintext_key, wrapping_key_blob):
+    # TODO: 必要に応じて変更
     wrapping_public_key = serialization.load_der_public_key(wrapping_key_blob)
     encrypt_key = wrapping_public_key.encrypt(
         plaintext_key,
@@ -191,6 +194,7 @@ def import_encrypted_key_material(kms_client, key_id, encrypted_key, import_toke
         EncryptedKeyMaterial=encrypted_key,
         ImportToken=import_token,
         ExpirationModel='KEY_MATERIAL_EXPIRES',
+        # TODO: GUIから設定できるようにする
         ValidTo=datetime(2025, 6, 17, 12, 0, 0, tzinfo=timezone.utc)
     )
 
@@ -235,19 +239,24 @@ def rotate_kms_key(kms_client, alias_name, new_id):
 
 def byok_aws(key_name, alias_name, do_rotate=False):
     conn = barbican_api.get_connection()
+
+    # キーのローテーションを行う場合、新しいシークレットを作成
     if do_rotate:
         secret = barbican_api.create_secret(conn, key_name)
     else:
+        # 既存のシークレットを検索
         secrets = conn.key_manager.secrets()
         for sec in secrets:
             if sec.name == key_name:
                 secret = sec
+                # TODO: 要修正
                 secret.payload = '0123456789abcdef0123456789abcdef'
 
     secret_id = secret.secret_id
     plaintext_key = secret.payload.encode()
 
     kms_client = boto3.client('kms')
+    # ステップ 1: キーマテリアルなしで AWS KMS key を作成する
     key_id = kms_create_key(kms_client)
 
     if do_rotate:
@@ -255,10 +264,13 @@ def byok_aws(key_name, alias_name, do_rotate=False):
     else:
         create_alias(kms_client, key_id, alias_name)
 
+    # ステップ 2: ラップパブリックキーおよびインポートトークンのダウンロード
     wrapping_key_blob, import_token = kms_get_import_parameters(kms_client, key_id)
 
+    # ステップ 3: キーマテリアルを暗号化する
     encrypt_key = encrypt_key_material(plaintext_key, wrapping_key_blob)
 
+    # ステップ 4: キーマテリアルのインポート
     import_encrypted_key_material(kms_client, key_id, encrypt_key, import_token)
 
     tag_kms_key_with_secret_id(kms_client, key_id, secret_id)
