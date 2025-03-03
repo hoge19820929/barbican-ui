@@ -92,5 +92,5 @@ class SecretsTable(tables.DataTable):
 
     class Meta(object):
         name = "secrets"
-        verbose_name = _("Secrets")
+        verbose_name = _("Barbican")
         table_actions = (SecretsFilterAction, CreateSecret, SendSecret, DeleteSecret,)

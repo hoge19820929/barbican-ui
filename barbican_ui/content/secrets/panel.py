@@ -19,5 +19,5 @@ from barbican_ui.api import rest_api  # noqa: F401
 
 
 class Secrets(horizon.Panel):
-    name = _("Secrets")
+    name = _("Barbican")
     slug = "secrets"
