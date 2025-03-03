@@ -90,6 +90,11 @@ def list_key_aliases(key_id, kms_client):
     aliases = [alias['AliasName'].replace('alias/', '') for alias in response['Aliases']]
     return aliases
 
+def list_key_tags(key_id, kms_client):
+    response = kms_client.list_resource_tags(KeyId=key_id)
+    tags = {tag['TagKey']: tag['TagValue'] for tag in response['Tags']}
+    return tags
+
 def determine_key_type(key_spec):
     symmetric_specs = [
         'SYMMETRIC_DEFAULT', 'HMAC_224', 'HMAC_256', 'HMAC_384', 'HMAC_512'
@@ -112,6 +117,11 @@ def fetch_key_data(key_id, kms_client):
 
     is_system_key = any(alias.startswith('aws/') for alias in aliases)
     if is_system_key:
+        return None
+    
+    # BYOKしたキーのみ表示
+    tags = list_key_tags(key_id, kms_client)
+    if 'OriginKeyID' not in tags:
         return None
     
     key_type = determine_key_type(metadata['KeySpec'])
