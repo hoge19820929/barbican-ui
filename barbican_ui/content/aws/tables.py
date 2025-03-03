@@ -13,13 +13,13 @@ class SecretsFilterAction(tables.FilterAction):
     filter_choices = (('alias', _('Alias ='), True),
                       ('key_id', _('Key ID ='), True),
                       ('key_state', _('Key State ='), True),
-                      ('key_type', _('Key Type ='), True),
-                      ('key_spec', _('Key Spec ='), True),
+#                      ('key_type', _('Key Type ='), True),
+#                      ('key_spec', _('Key Spec ='), True),
                       ('key_usage', _('Key Usage ='), True),
                       ('description', _('Description ='), True),
                       ('aws_account', _('AWS Account ='), True),
                       ('region', _('Region ='), True),
-                      ('origin', _('Origin ='), True),
+#                      ('origin', _('Origin ='), True),
                       ('creation_date', _('Creation Date ='), True),
                       ('expiration_date', _('Expiration Date ='), True))
 
@@ -99,13 +99,13 @@ class SecretsTable(tables.DataTable):
     alias = tables.Column('alias', verbose_name=_("Alias"))
     key_id = tables.Column('key_id', verbose_name=_("Key ID"))
     key_state = tables.Column('key_state', verbose_name=_("Key State"))
-    key_type = tables.Column('key_type', verbose_name=_("Key Type"))
-    key_spec = tables.Column('key_spec', verbose_name=_("Key Spec"))
+#    key_type = tables.Column('key_type', verbose_name=_("Key Type"))
+#    key_spec = tables.Column('key_spec', verbose_name=_("Key Spec"))
     key_usage = tables.Column('key_usage', verbose_name=_("Key Usage"))
     description = tables.Column('description', verbose_name=_("Description"))
     aws_account = tables.Column('aws_account', verbose_name=_("AWS Account"))
     region = tables.Column('region', verbose_name=_("Region"))
-    origin = tables.Column('origin', verbose_name=_("Origin"))
+#    origin = tables.Column('origin', verbose_name=_("Origin"))
     creation_date = tables.Column('creation_date', verbose_name=_("Creation Date"))
     expiration_date = tables.Column('expiration_date', verbose_name=_("Expiration Date"))
 
