@@ -6,6 +6,7 @@ from horizon import tables
 
 from . import api
 from barbican_ui.content.aws import api as aws_api
+from barbican_ui.content.oracle import api as oracle_api
 
 class SecretsFilterAction(tables.FilterAction):
     filter_type = 'server'
@@ -56,6 +57,37 @@ class SendSecret(tables.BatchAction):
         except Exception:
             exceptions.handle(request, _("Unable to send key."))
 
+class SendSecretOracle(tables.BatchAction):
+    @staticmethod
+    def action_present(count):
+        return ngettext_lazy(
+            u"Send Key(Oracle)",
+            u"Send Key(Oracle)",
+            count
+        )
+
+    @staticmethod
+    def action_past(count):
+        return ngettext_lazy(
+            u"Send Key(Oracle)",
+            u"Send Key(Oracle)",
+            count
+        )
+    
+    name = "send-oracle"
+    verbose_name = _("Send Key(Oracle)")
+    icon = "cloud-upload"
+
+    def action(self, request, obj_id):
+        try:
+            secrets = api.get_secrets(request)
+            for secret in secrets:
+                if secret.id == obj_id:
+                    key_name = secret.name
+            oracle_api.byok_oci(key_name, False)
+        except Exception:
+            exceptions.handle(request, _("Unable to send key."))
+
 class DeleteSecret(tables.DeleteAction):
     @staticmethod
     def action_present(count):
@@ -93,4 +125,4 @@ class SecretsTable(tables.DataTable):
     class Meta(object):
         name = "secrets"
         verbose_name = _("Barbican")
-        table_actions = (SecretsFilterAction, CreateSecret, SendSecret, DeleteSecret,)
+        table_actions = (SecretsFilterAction, CreateSecret, SendSecret, SendSecretOracle, DeleteSecret,)
