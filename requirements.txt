@@ -14,3 +14,4 @@ horizon>=25.0.0 # Apache-2.0
 openstacksdk>=4.3.0
 boto3>=1.36.0
 mistral-lib>=2.5.0
+oci>=2.147.0
