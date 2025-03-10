@@ -141,7 +141,7 @@ def create_key_material(manage_client, key):
 
     return key_material
 
-def import_key(manage_client, compartment_id, display_name, key_material):
+def import_key(manage_client, compartment_id, display_name, key_material, origin_key_id):
     wrapped_import_key_json = {
         "wrappingAlgorithm": "RSA_OAEP_SHA256",
         "keyMaterial": key_material
@@ -157,14 +157,15 @@ def import_key(manage_client, compartment_id, display_name, key_material):
         compartment_id=compartment_id,
         display_name=display_name,
         key_shape=key_shape,
-        wrapped_import_key=wrapped_import_key_json
+        wrapped_import_key=wrapped_import_key_json,
+        freeform_tags={"OriginKeyID": origin_key_id}
     )
 
     imported_key = manage_client.import_key(import_key_details)
 
     return imported_key
 
-def byok_oci(key_name, do_rotate=False):
+def byok_oci(vault_name, key_name, do_rotate=False):
     conn = barbican_api.get_connection()
 
     # キーのローテーションを行う場合、新しいシークレットを作成
@@ -182,14 +183,14 @@ def byok_oci(key_name, do_rotate=False):
     plaintext_key = secret.payload.encode()
 
     config = oci.config.from_file()
-    compartment_id = config.get("compartment_id")
+    compartment_id = config["compartment_id"]
 
-    vault_client = oci.key_management.KmsVaultClient(config)
-    vault = create_vault(vault_client, compartment_id, key_name)
+    vault_client = KmsVaultClient(config)
+    vault = get_vault(vault_client, compartment_id, vault_name)
 
     service_endpoint = vault.management_endpoint
 
-    manage_client = oci.key_management.KmsManagementClient(
+    manage_client = KmsManagementClient(
         config=config,
         service_endpoint=service_endpoint
     )
@@ -198,7 +199,7 @@ def byok_oci(key_name, do_rotate=False):
     key_material = create_key_material(manage_client, plaintext_key)
 
     # 鍵のインポート
-    import_key(manage_client, compartment_id, key_name, key_material)
+    import_key(manage_client, compartment_id, key_name, key_material, secret.secret_id)
 
 def import_key_version(manage_client, key_id, key_material, origin_key_id):
     wrapped_import_key_json = {

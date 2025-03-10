@@ -110,4 +110,4 @@ class SecretsTable(tables.DataTable):
         name = "secrets"
         verbose_name = _("Barbican")
         table_actions = (SecretsFilterAction, CreateSecret, DeleteSecret,)
-        row_actions = (SendSecret, SendSecretOracle, )
+        row_actions = (SendSecret, AutoRotateSecret, )

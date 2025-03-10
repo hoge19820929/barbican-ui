@@ -77,7 +77,7 @@ class DeleteSecret(tables.DeleteAction):
     
     def delete(self, request, key_id):
         try:
-            api.delete_secret(key_id)
+            api.delete_key(key_id)
         except Exception:
             exceptions.handle(request, _("Unable to delete keys."))
 
