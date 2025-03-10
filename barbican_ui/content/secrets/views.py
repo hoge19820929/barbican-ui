@@ -1,5 +1,3 @@
-from operator import attrgetter
-
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
@@ -34,3 +32,12 @@ class CreateSecretView(forms.ModalFormView):
     submit_url = reverse_lazy("horizon:project:secrets:create")
     success_url = reverse_lazy('horizon:project:secrets:index')
     page_title = _("Create Secret")
+
+class SendSecretOracleView(forms.ModalFormView):
+    template_name = 'project/secrets/send_key_oracle.html'
+    form_id = "send_key_oracle"
+    form_class = project_forms.SendSecretOracleForm
+    submit_label = _("Send")
+    submit_url = reverse_lazy("horizon:project:secrets:send_key_oracle")
+    success_url = reverse_lazy('horizon:project:secrets:index')
+    page_title = _("Send Key(Oracle)")

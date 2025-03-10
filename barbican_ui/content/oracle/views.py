@@ -1,5 +1,3 @@
-from operator import attrgetter
-
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
@@ -13,24 +11,24 @@ from . import tables as project_tables
 
 class IndexView(tables.PagedTableMixin, tables.DataTableView):
     table_class = project_tables.SecretsTable
-    page_title = _("Barbican")
+    page_title = _("OCI KMS")
     template_name = 'project/oracle/index.html'
 
     def get_data(self):
         try:
             search_opts = self.get_filters()
-            secrets = project_api.get_secrets(self.request, **search_opts)
+            secrets = project_api.get_key_data(**search_opts)
 
             return secrets
-        except Exception as e:
+        except Exception:
             exceptions.handle(self.request, _("Unable to retrieve secrets."))
             return []
 
-class CreateSecretView(forms.ModalFormView):
-    template_name = 'project/oracle/create.html'
-    form_id = "create_secret"
-    form_class = project_forms.CreateSecretForm
-    submit_label = _("Create")
-    submit_url = reverse_lazy("horizon:project:oracle:create")
+class AutoRotateSecretView(forms.ModalFormView):
+    template_name = 'project/oracle/auto_rotate.html'
+    form_id = "auto_rotate_oracle"
+    form_class = project_forms.AutoRotateSecretForm
+    submit_label = _("Submit")
+    submit_url = reverse_lazy("horizon:project:oracle:auto_rotate")
     success_url = reverse_lazy('horizon:project:oracle:index')
-    page_title = _("Create Secret")
+    page_title = _("Auto Rotate Secret")

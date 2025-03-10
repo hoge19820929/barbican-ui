@@ -1,3 +1,5 @@
+from django.urls import reverse
+from django.utils.http import urlencode
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext_lazy
 
@@ -57,36 +59,18 @@ class SendSecret(tables.BatchAction):
         except Exception:
             exceptions.handle(request, _("Unable to send key."))
 
-class SendSecretOracle(tables.BatchAction):
-    @staticmethod
-    def action_present(count):
-        return ngettext_lazy(
-            u"Send Key(Oracle)",
-            u"Send Key(Oracle)",
-            count
-        )
-
-    @staticmethod
-    def action_past(count):
-        return ngettext_lazy(
-            u"Send Key(Oracle)",
-            u"Send Key(Oracle)",
-            count
-        )
-    
+class AutoRotateSecret(tables.LinkAction):
     name = "send-oracle"
     verbose_name = _("Send Key(Oracle)")
-    icon = "cloud-upload"
+    url = "horizon:project:secrets:send_key_oracle"
+    classes = ("ajax-modal",)
+    icon = "plus"
 
-    def action(self, request, obj_id):
-        try:
-            secrets = api.get_secrets(request)
-            for secret in secrets:
-                if secret.id == obj_id:
-                    key_name = secret.name
-            oracle_api.byok_oci(key_name, False)
-        except Exception:
-            exceptions.handle(request, _("Unable to send key."))
+    def get_link_url(self, datum):
+        base_url = reverse(self.url)
+        params = urlencode({"name": datum.name})
+
+        return "?".join([base_url, params])
 
 class DeleteSecret(tables.DeleteAction):
     @staticmethod
@@ -125,4 +109,5 @@ class SecretsTable(tables.DataTable):
     class Meta(object):
         name = "secrets"
         verbose_name = _("Barbican")
-        table_actions = (SecretsFilterAction, CreateSecret, SendSecret, SendSecretOracle, DeleteSecret,)
+        table_actions = (SecretsFilterAction, CreateSecret, DeleteSecret,)
+        row_actions = (SendSecret, SendSecretOracle, )
