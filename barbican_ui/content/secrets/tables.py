@@ -28,7 +28,7 @@ class CreateSecret(tables.LinkAction):
     classes = ("ajax-modal",)
     icon = "plus"
 
-class SendSecret(tables.BatchAction):
+class SendAWSKey(tables.BatchAction):
     @staticmethod
     def action_present(count):
         return ngettext_lazy(
@@ -59,7 +59,7 @@ class SendSecret(tables.BatchAction):
         except Exception:
             exceptions.handle(request, _("Unable to send key."))
 
-class AutoRotateSecret(tables.LinkAction):
+class SendOracleKey(tables.LinkAction):
     name = "send-oracle"
     verbose_name = _("Send Key(Oracle)")
     url = "horizon:project:secrets:send_key_oracle"
@@ -110,4 +110,4 @@ class SecretsTable(tables.DataTable):
         name = "secrets"
         verbose_name = _("Barbican")
         table_actions = (SecretsFilterAction, CreateSecret, DeleteSecret,)
-        row_actions = (SendSecret, AutoRotateSecret, )
+        row_actions = (SendAWSKey, SendOracleKey, )
