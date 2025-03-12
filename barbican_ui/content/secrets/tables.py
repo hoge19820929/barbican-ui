@@ -8,7 +8,6 @@ from horizon import tables
 
 from . import api
 from barbican_ui.content.aws import api as aws_api
-from barbican_ui.content.oracle import api as oracle_api
 
 class SecretsFilterAction(tables.FilterAction):
     filter_type = 'server'
