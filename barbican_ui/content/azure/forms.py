@@ -13,16 +13,11 @@ class AutoRotateSecretForm(forms.SelfHandlingForm):
         self.fields = collections.OrderedDict([
             (
                 'key_id',
-                forms.RegexField(
+                forms.CharField(
                     max_length=255,
                     label=_('Key ID'),
-                    initial=self.request.GET.get('key_id', ''),
-                    help_text=_('Key ID of the Oracle KMS key.'),
-                    regex=r"^[a-zA-Z][a-zA-Z0-9_.-]*$",
-                    error_messages={'invalid':
-                                    _('Name must start with a letter and may '
-                                    'only contain letters, numbers, underscores, '
-                                    'periods and hyphens.')})
+                    initial=self.request.GET.get('key_id', '')
+                )
             ),
             (
                 'pattern',

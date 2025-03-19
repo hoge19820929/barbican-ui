@@ -14,7 +14,7 @@ class SecretsFilterAction(tables.FilterAction):
                       ('key_id', _('Key ID ='), True),
                       ('key_version_count', _('Key Version Count ='), True),
                       ('vault_name', _('Vault Name ='), True),
-                      ('key_state', _('Status ='), True),
+                      ('key_enabled', _('Key Enabled ='), True),
                       ('time_created', _('Created At ='), True),
                       ('origin_key_id', _('Origin Key ID ='), True))
 
@@ -22,21 +22,21 @@ class SendSecret(tables.BatchAction):
     @staticmethod
     def action_present(count):
         return ngettext_lazy(
-            u"Send Key(Oracle)",
-            u"Send Key(Oracle)",
+            u"Send Key(Azure)",
+            u"Send Key(Azure)",
             count
         )
 
     @staticmethod
     def action_past(count):
         return ngettext_lazy(
-            u"Send Key(Oracle)",
-            u"Send Key(Oracle)",
+            u"Send Key(Azure)",
+            u"Send Key(Azure)",
             count
         )
     
     name = "send"
-    verbose_name = _("Send Key(Oracle)")
+    verbose_name = _("Send Key(Azure)")
     icon = "cloud-upload"
 
     def action(self, request, key_id):
@@ -87,7 +87,7 @@ class SecretsTable(tables.DataTable):
     key_id = tables.Column('key_id', verbose_name=_("Key ID"))
     key_version_count = tables.Column('key_version_count', verbose_name=_("Key Version Count"))
     vault_name = tables.Column('vault_name', verbose_name=_("Vault Name"))
-    key_state = tables.Column('key_state', verbose_name=_("Status"))
+    key_enabled = tables.Column('key_enabled', verbose_name=_("Key Enabled"))
     time_created = tables.Column('time_created', verbose_name=_("Created At"))
     origin_key_id = tables.Column('origin_key_id', verbose_name=_("Origin Key ID"))
 
