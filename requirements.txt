@@ -20,3 +20,4 @@ azure-keyvault-secrets>=4.9.0
 azure-keyvault-keys>=4.10.0
 azure-mgmt-keyvault>=11.0.0
 azure-mgmt-resource>=23.3.0
+google-cloud-kms>=3.4.1
