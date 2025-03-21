@@ -41,3 +41,12 @@ class SendSecretOracleView(forms.ModalFormView):
     submit_url = reverse_lazy("horizon:project:secrets:send_key_oracle")
     success_url = reverse_lazy('horizon:project:secrets:index')
     page_title = _("Send Key(Oracle)")
+
+class SendSecretAzureView(forms.ModalFormView):
+    template_name = 'project/secrets/send_key_azure.html'
+    form_id = "send_key_azure"
+    form_class = project_forms.SendSecretAzureForm
+    submit_label = _("Send")
+    submit_url = reverse_lazy("horizon:project:secrets:send_key_azure")
+    success_url = reverse_lazy('horizon:project:secrets:index')
+    page_title = _("Send Key(Azure)")

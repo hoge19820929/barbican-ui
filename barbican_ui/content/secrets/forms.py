@@ -7,6 +7,7 @@ from horizon import messages
 
 from . import api
 from barbican_ui.content.oracle import api as oracle_api
+from barbican_ui.content.azure import api as azure_api
 
 class CreateSecretForm(forms.SelfHandlingForm):
 
@@ -66,6 +67,48 @@ class SendSecretOracleForm(forms.SelfHandlingForm):
     def handle(self, request, data):
         try:
             oracle_api.byok_oci(data['vault'], data['name'], False)
+            messages.success(request, _("Successfully send a key: %s") % data['name'])
+            return True
+        except Exception:
+            exceptions.handle(request)
+            return False
+
+class SendSecretAzureForm(forms.SelfHandlingForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields = collections.OrderedDict([
+            (
+                'vault',
+                forms.ChoiceField(
+                    label=_("Vault Name"),
+                    widget=forms.SelectWidget(),
+                    choices=self.get_vault_choices()
+                )
+            ),
+            (
+                'name',
+                forms.RegexField(
+                    max_length=255,
+                    label=_('Key Name'),
+                    initial=self.request.GET.get('name', ''),
+                    help_text=_('Name of the Oracle KMS key.'),
+                    regex=r"^[a-zA-Z][a-zA-Z0-9_.-]*$",
+                    error_messages={'invalid':
+                                    _('Name must start with a letter and may '
+                                    'only contain letters, numbers, underscores, '
+                                    'periods and hyphens.')})
+            )
+        ])
+    
+    def get_vault_choices(self):
+        vault_names = azure_api.list_vault_names()
+        choices = [(name, name) for name in vault_names]
+
+        return choices
+
+    def handle(self, request, data):
+        try:
+            azure_api.byok_azure(data['vault'], data['name'], data['name'], False)
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
         except Exception:

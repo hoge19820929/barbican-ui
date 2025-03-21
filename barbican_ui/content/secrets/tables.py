@@ -71,6 +71,19 @@ class SendOracleKey(tables.LinkAction):
 
         return "?".join([base_url, params])
 
+class SendAzureKey(tables.LinkAction):
+    name = "send-azure"
+    verbose_name = _("Send Key(Azure)")
+    url = "horizon:project:secrets:send_key_azure"
+    classes = ("ajax-modal",)
+    icon = "plus"
+
+    def get_link_url(self, datum):
+        base_url = reverse(self.url)
+        params = urlencode({"name": datum.name})
+
+        return "?".join([base_url, params])
+
 class DeleteSecret(tables.DeleteAction):
     @staticmethod
     def action_present(count):
@@ -109,4 +122,4 @@ class SecretsTable(tables.DataTable):
         name = "secrets"
         verbose_name = _("Barbican")
         table_actions = (SecretsFilterAction, CreateSecret, DeleteSecret,)
-        row_actions = (SendAWSKey, SendOracleKey, )
+        row_actions = (SendAWSKey, SendOracleKey, SendAzureKey,)
