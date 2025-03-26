@@ -92,7 +92,7 @@ def import_manually_wrapped_key(project_id, location_id, key_ring_id, crypto_key
 
     import_job = client.get_import_job(name=import_job_path)
     import_job_pub = serialization.load_pem_public_key(
-        bytes(import_job.public_key_pem, "UTF-8"), default_backend()
+        bytes(import_job.public_key.pem, "UTF-8"), default_backend()
     )
 
     wrapped_kwp_key = import_job_pub.encrypt(
