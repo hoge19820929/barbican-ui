@@ -249,7 +249,7 @@ def delete_key_in_vault(vault, key_id, config, compartment_id):
 
     for key in keys:
         if key.id == key_id:
-            time_of_deletion = datetime.now(timezone.utc) + timedelta(days=30)
+            time_of_deletion = datetime.now(timezone.utc) + timedelta(days=7)
             delete_details = oci.key_management.models.ScheduleKeyDeletionDetails(
                 time_of_deletion=time_of_deletion
             )
