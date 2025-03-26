@@ -1,49 +1,102 @@
-import base64
-import json
 import os
-import subprocess
-import configparser
 from datetime import datetime
 import concurrent.futures
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, keywrap, serialization
-from cryptography.hazmat.primitives.asymmetric import padding, rsa
-from azure.identity import DefaultAzureCredential
-from azure.mgmt.resource import ResourceManagementClient
-from azure.mgmt.keyvault import KeyVaultManagementClient
-from azure.keyvault.keys import KeyClient, KeyType
+from cryptography.hazmat.primitives.asymmetric import padding
+from google.cloud import kms
+from google.auth import default
 from openstack import resource
 from mistral_lib import actions
 
 from barbican_ui.content.secrets import api as barbican_api
 
-def create_kek(vault_name, key_name):
-    credential = DefaultAzureCredential()
-    key_client = KeyClient(vault_url=f'https://{vault_name}.vault.azure.net/', credential=credential)
+def get_project_id():
+    _, project_id = default()
 
-    return key_client.create_key(
-        name=key_name,
-        key_type=KeyType.rsa_hsm,
-        size=2048,
-        key_operations=["import"]
+    if project_id is None:
+        raise ValueError("Project ID could not be retrieved from the credentials.")
+    
+    return project_id
+
+def list_key_ring_ids():
+    project_id = get_project_id()
+    # TODO: FIXME
+    location_id = 'us-central1'
+
+    client = kms.KeyManagementServiceClient()
+    location_path = client.common_location_path(project_id, location_id)
+
+    key_ring_ids = []
+    for key_ring in client.list_key_rings(parent=location_path):
+        key_ring_id = key_ring.name.split('/')[-1]
+        key_ring_ids.append(key_ring_id)
+
+    return key_ring_ids
+
+def create_key_for_import(project_id, location_id, key_ring_id, crypto_key_id):
+    client = kms.KeyManagementServiceClient()
+
+    # TODO: FIXME
+    purpose = kms.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT
+    algorithm = kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION
+    protection_level = kms.ProtectionLevel.SOFTWARE
+    key = {
+        "purpose": purpose,
+        "version_template": {
+            "algorithm": algorithm,
+            "protection_level": protection_level,
+        },
+    }
+
+    key_ring_path = client.key_ring_path(project_id, location_id, key_ring_id)
+
+    created_key = client.create_crypto_key(
+        request={
+            "parent": key_ring_path,
+            "crypto_key_id": crypto_key_id,
+            "crypto_key": key,
+            "skip_initial_version_creation": True,
+        }
     )
 
-def get_key(vault_name, key_name):
-    credential = DefaultAzureCredential()
-    key_client = KeyClient(vault_url=f'https://{vault_name}.vault.azure.net/', credential=credential)
+    return created_key
 
-    return key_client.get_key(key_name)
+def create_import_job(project_id, location_id, key_ring_id, import_job_id):
+    client = kms.KeyManagementServiceClient()
 
-def get_public_key(key):
-    return rsa.RSAPublicNumbers(
-        e=int.from_bytes(key.key.e, byteorder='big'),
-        n=int.from_bytes(key.key.n, byteorder='big')
-    ).public_key()
+    key_ring_path = client.key_ring_path(project_id, location_id, key_ring_id)
+    import_method = kms.ImportJob.ImportMethod.RSA_OAEP_3072_SHA1_AES_256
+    protection_level = kms.ProtectionLevel.SOFTWARE
+    import_job_params = {
+        "import_method": import_method,
+        "protection_level": protection_level,
+    }
 
-def wrap_key(target_key, kek_rsa):
-    kek_aes = os.urandom(32)
-    wrapped_key = kek_rsa.encrypt(
-        kek_aes,
+    client.create_import_job(
+        {
+            "parent": key_ring_path,
+            "import_job_id": import_job_id,
+            "import_job": import_job_params,
+        }
+    )
+
+def import_manually_wrapped_key(project_id, location_id, key_ring_id, crypto_key_id, import_job_id, payload):
+    client = kms.KeyManagementServiceClient()
+
+    crypto_key_path = client.crypto_key_path(project_id, location_id, key_ring_id, crypto_key_id)
+    import_job_path = client.import_job_path(project_id, location_id, key_ring_id, import_job_id)
+
+    kwp_key = os.urandom(32)
+    wrapped_target_key = keywrap.aes_key_wrap_with_padding(kwp_key, payload, default_backend())
+
+    import_job = client.get_import_job(name=import_job_path)
+    import_job_pub = serialization.load_pem_public_key(
+        bytes(import_job.public_key_pem, "UTF-8"), default_backend()
+    )
+
+    wrapped_kwp_key = import_job_pub.encrypt(
+        kwp_key,
         padding.OAEP(
             mgf=padding.MGF1(algorithm=hashes.SHA1()),
             algorithm=hashes.SHA1(),
@@ -51,79 +104,73 @@ def wrap_key(target_key, kek_rsa):
         ),
     )
 
-    wrapped_target_key = keywrap.aes_key_wrap_with_padding(
-        kek_aes, target_key, default_backend()
+    response = client.import_crypto_key_version(
+        {
+            "parent": crypto_key_path,
+            "import_job": import_job_path,
+            "algorithm": kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION,
+            "rsa_aes_wrapped_key": wrapped_kwp_key + wrapped_target_key,
+        }
     )
 
-    ciphertext = wrapped_key + wrapped_target_key
+    # Set the imported key version as the primary version.
+    new_version_name = response.name
+    client.update_crypto_key_primary_version(
+        request={
+            "name": crypto_key_path,
+            "crypto_key_version_id": new_version_name.split('/')[-1],
+        }
+    )
 
-    return base64.urlsafe_b64encode(ciphertext).decode('utf-8')
+def update_label(crypto_key, label):
+    client = kms.KeyManagementServiceClient()
 
-def generate_byok_package(key_id, wrapped_key):
-    byok_package = {
-        "schema_version": "1.0.0",
-        "header": {
-            "kid": key_id,
-            "alg": "dir",
-            "enc": "CKM_RSA_AES_KEY_WRAP"
-        },
-        "ciphertext": wrapped_key,
-        "generator": "BYOK tool v1.0"
-    }
+    crypto_key.labels["origin_key_id"] = label
 
-    return json.dumps(byok_package)
+    client.update_crypto_key(
+        {
+            "crypto_key": crypto_key,
+            "update_mask": {"paths": ["labels"]}
+        }
+    )
 
-def import_key_azure(vault_name, key_name, byok_str, origin_key_id):
-    command = [
-        'az', 'keyvault', 'key', 'import',
-        '--vault-name', vault_name,
-        '--name', key_name,
-        '--byok-string', byok_str,
-        '--ops', 'encrypt', 'decrypt',
-        '--tags', f'OriginKeyID={origin_key_id}'
-    ]
+def get_rotation_crypto_key(project_id, location_id, key_ring_id, crypto_key_id):
+    client = kms.KeyManagementServiceClient()
+    crypto_key_path = client.crypto_key_path(project_id, location_id, key_ring_id, crypto_key_id)
+    return client.get_crypto_key(name=crypto_key_path)
 
-    return subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+def byok_google(key_ring_id, key_id, do_rotate = False):
+    project_id = get_project_id()
+    # TODO: FIXME
+    location_id = 'us-central1'
+    import_job_id = f'byok_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+    create_import_job(project_id, location_id, key_ring_id, import_job_id)
 
-def byok_azure(vault_name, key_name, origin_key_name, do_rotate=False):
     conn = barbican_api.get_connection()
 
     if do_rotate:
-        secret = barbican_api.create_secret(conn, origin_key_name)
+        secret = barbican_api.create_secret(conn, key_id)
+        # ローテーション対象のキーを取得
+        crypto_key = get_rotation_crypto_key(project_id, location_id, key_ring_id, key_id)
     else:
         secrets = conn.key_manager.secrets()
         for sec in secrets:
-            if sec.name == origin_key_name:
+            if sec.name == key_id:
                 secret = sec
-
-    # クライアントKMSの鍵を使うように要修正
-    target_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-    ).private_bytes(
-        encoding=serialization.Encoding.DER,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
+                # TODO: FIXME
+                secret.payload = '0123456789abcdef0123456789abcdef'
+        # Google KMSにキーバージョンが空のキーを作成
+        crypto_key = create_key_for_import(project_id, location_id, key_ring_id, key_id)
+    
+    import_manually_wrapped_key(
+        project_id, location_id, key_ring_id, key_id, import_job_id, secret.payload.encode('utf-8')
     )
-
-    KEK_NAME = 'KEKforBYOK2048'
-
-    try:
-        kek = get_key(vault_name, KEK_NAME)
-    except Exception:
-        kek = create_kek(vault_name, KEK_NAME)
-
-    kek_rsa = get_public_key(kek)
-
-    wrapped_key = wrap_key(target_key, kek_rsa)
-
-    byok_str = generate_byok_package(kek.id, wrapped_key)
-
-    import_key_azure(vault_name, key_name, byok_str, secret.secret_id)
+    # ラベルにorigin_key_idを設定
+    update_label(crypto_key, secret.secret_id)
 
 class KeyData(resource.Resource):
-    resources_key = 'azure'
-    base_path = '/azure'
+    resources_key = 'google'
+    base_path = '/google'
 
     allow_create = True
     allow_fetch = True
@@ -135,8 +182,8 @@ class KeyData(resource.Resource):
         "name",
         "key_id",
         "key_version_count",
-        "vault_name",
-        "key_enabled",
+        "key_ring_id",
+        "key_status",
         "time_created",
         "origin_key_id",
     )
@@ -144,75 +191,54 @@ class KeyData(resource.Resource):
     name = resource.Body('name')
     key_id = resource.Body('key_id')
     key_version_count = resource.Body('key_version_count')
-    vault_name = resource.Body('vault_name')
-    key_enabled = resource.Body('key_enabled')
+    key_ring_id = resource.Body('key_ring_id')
+    key_status = resource.Body('key_status')
     time_created = resource.Body('time_created')
     origin_key_id = resource.Body('origin_key_id')
 
-def get_subscription_id(credentials_file='~/.azure/credentials'):
-    credentials_file = os.path.expanduser(credentials_file)
-
-    config = configparser.ConfigParser()
-
-    config.read(credentials_file)
-
-    return config.get('DEFAULT', 'subscription_id', fallback=None)
-
-def list_vaults(credential):
-    subscription_id = get_subscription_id()
-
-    resource_client = ResourceManagementClient(credential, subscription_id)
-    kv_client = KeyVaultManagementClient(credential, subscription_id)
-
-    resource_groups = resource_client.resource_groups.list()
-
-    vaults_list = []
-
-    for rg in resource_groups:
-        keyvaults = kv_client.vaults.list_by_resource_group(rg.name)
-        vaults_list.extend(keyvaults)
+def fetch_keys(client, key_ring_path):
+    keys = client.list_crypto_keys(parent=key_ring_path)
     
-    return vaults_list
+    key_data_list = []
 
-def fetch_keys_for_vault(credential, vault):
-    try:
-        key_client = KeyClient(vault_url=vault.properties.vault_uri, credential=credential)
+    for key in keys:
+        # タグ情報に"origin_key_id"が含まれているキーのみ取得
+        if 'origin_key_id' in (key.labels or {}):
+            key_name = key.name.split('/')[-1]
+            key_id = key.name
+            version_count = len(list(client.list_crypto_key_versions(parent=key.name)))
+            key_ring_id = key_ring_path.split('/')[-1]
+            status = key.primary.state.name if key.primary else "UNSPECIFIED"
+            create_time = key.create_time if key.create_time else "N/A"
+            origin_key_id = key.labels.get('origin_key_id', '')
 
-        keys = key_client.list_properties_of_keys()
+            key_data = KeyData(
+                id=key_id,
+                name=key_name,
+                key_id=key_id,
+                key_version_count=version_count,
+                key_ring_id=key_ring_id,
+                key_status=status,
+                time_created=create_time,
+                origin_key_id=origin_key_id,
+            )
+            key_data_list.append(key_data)
 
-        key_data_list = []
-
-        for key_property in keys:
-            key = key_client.get_key(key_property.name)
-
-            # タグ情報に"OriginKeyID"が含まれているキーのみ取得
-            if 'OriginKeyID' in (key.properties.tags or {}):
-                version_count = sum(1 for _ in key_client.list_properties_of_key_versions(key.name))
-                key_data = KeyData(
-                    id=key.id,
-                    name=key.name,
-                    key_id=key.id,
-                    key_version_count=version_count,
-                    vault_name=vault.name,
-                    key_enabled=key.properties.enabled,
-                    time_created=key.properties.created_on,
-                    origin_key_id=key.properties.tags.get('OriginKeyID', ''),
-                )
-                key_data_list.append(key_data)
-
-        return key_data_list
-    except Exception:
-        # アクセス権限エラーを無視
-        return []
+    return key_data_list
 
 def get_key_data(**search_opts):
-    credential = DefaultAzureCredential()
-    vaults = list_vaults(credential)
+    client = kms.KeyManagementServiceClient()
+    project_id = get_project_id()
+    location_id = 'us-central1'
+    location_path = client.common_location_path(project_id, location_id)
+    key_rings = client.list_key_rings(parent=location_path)
 
     key_data_list = []
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_vault = {executor.submit(fetch_keys_for_vault, credential, vault): vault for vault in vaults}
-        for future in concurrent.futures.as_completed(future_to_vault):
+        future_to_key_ring = {
+            executor.submit(fetch_keys, client, key_ring.name): key_ring for key_ring in key_rings
+        }
+        for future in concurrent.futures.as_completed(future_to_key_ring):
             results = future.result()
             if search_opts:
                 for result in results:
@@ -224,38 +250,26 @@ def get_key_data(**search_opts):
 
     return key_data_list
 
-def list_vault_names():
-    credential = DefaultAzureCredential()
-    vaults = list_vaults(credential)
-    vault_names = [vault.name for vault in vaults]
+def rotate_key(key_path):
+    # KEY Path: projects/{project_id}/locations/{location_id}/keyRings/{key_ring_id}/cryptoKeys/{key_id}
+    key_ring_id = key_path.split('/keyRings/')[1].split('/')[0]
+    crypto_key_id = key_path.split('/cryptoKeys/')[1]
+    byok_google(key_ring_id, crypto_key_id, True)
 
-    return vault_names
+def delete_key_versions(key_path):
+    client = kms.KeyManagementServiceClient()
+    versions = client.list_crypto_key_versions(parent=key_path)
 
-def rotate_key(key_id):
-    # KEY ID: https://{VAULT_NAME}.vault.azure.net/keys/{KEY_NAME}
-    url_without_protocol = key_id.split('//')[1]
-    domain_and_path = url_without_protocol.split('/')
-    vault_name = domain_and_path[0].split('.')[0]
-    key_name = key_id.split('/keys/')[1].split('/')[0]
-    origin_key_name = f'{key_name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+    for version in versions:
+        if version.state in [
+            kms.CryptoKeyVersion.CryptoKeyVersionState.DESTROYED,
+            kms.CryptoKeyVersion.CryptoKeyVersionState.DESTROY_SCHEDULED,
+        ]:
+            continue
 
-    byok_azure(vault_name, key_name, origin_key_name, True)
+        client.destroy_crypto_key_version(name=version.name)
 
-def delete_key(key_id):
-    credential = DefaultAzureCredential()
-    # KEY ID: https://{VAULT_NAME}.vault.azure.net/keys/{KEY_NAME}
-    key_client = KeyClient(vault_url=key_id.split('/keys/')[0], credential=credential)
-
-    try:
-        key_name = key_id.split('/keys/')[1].split('/')[0]
-        delete_operation = key_client.begin_delete_key(key_name)
-        # 削除完了を待つ
-        return delete_operation.result()
-    except Exception as e:
-        print(f"Failed to delete key '{key_id}': {e}")
-        raise
-
-class BYOKAzureAction(actions.Action):
+class BYOKGoogleAction(actions.Action):
     def __init__(self, key_id):
         self.key_id = key_id
     
@@ -273,18 +287,18 @@ def get_workflow(conn, name):
 def create_workflow(conn):
     workflow_definition = """
 version: '2.0'
-rotate_azure_workflow:
+rotate_google_workflow:
   type: direct
   input:
     - key_id
   tasks:
-    execute_byok_azure:
-      action: byok.azure
+    execute_byok_google:
+      action: byok.google
       input:
         key_id: <% $.key_id %>
       on-success: notify_execution
     notify_execution:
-      action: std.echo output="byok_azure function executed successfully."
+      action: std.echo output="byok_google function executed successfully."
     """
     workflow = conn.workflow.create_workflow(
         definition=workflow_definition,
@@ -307,7 +321,7 @@ def create_cron_trigger(conn, workflow_name, key_id, pattern):
 
 def auto_rotate_key(key_id, pattern):
     conn = barbican_api.get_connection()
-    workflow_name = 'rotate_azure_workflow'
+    workflow_name = 'rotate_google_workflow'
     workflow_created = get_workflow(conn, workflow_name)
     if workflow_created is None:
         create_workflow(conn)

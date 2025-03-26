@@ -7,4 +7,5 @@ urlpatterns = [
     re_path(r'^create$', views.CreateSecretView.as_view(), name='create'),
     re_path(r'^send_key_oracle$', views.SendSecretOracleView.as_view(), name='send_key_oracle'),
     re_path(r'^send_key_azure$', views.SendSecretAzureView.as_view(), name='send_key_azure'),
+    re_path(r'^send_key_google$', views.SendSecretGoogleView.as_view(), name='send_key_google'),
 ]

@@ -13,8 +13,8 @@ class SecretsFilterAction(tables.FilterAction):
     filter_choices = (('name', _('Key Name ='), True, _('Case-sensitive')),
                       ('key_id', _('Key ID ='), True),
                       ('key_version_count', _('Key Version Count ='), True),
-                      ('vault_name', _('Vault Name ='), True),
-                      ('key_enabled', _('Key Enabled ='), True),
+                      ('key_ring_id', _('Key Ring ID ='), True),
+                      ('key_status', _('Key Status ='), True),
                       ('time_created', _('Created At ='), True),
                       ('origin_key_id', _('Origin Key ID ='), True))
 
@@ -22,21 +22,21 @@ class SendSecret(tables.BatchAction):
     @staticmethod
     def action_present(count):
         return ngettext_lazy(
-            u"Send Key(Azure)",
-            u"Send Key(Azure)",
+            u"Send Key(Google)",
+            u"Send Key(Google)",
             count
         )
 
     @staticmethod
     def action_past(count):
         return ngettext_lazy(
-            u"Send Key(Azure)",
-            u"Send Key(Azure)",
+            u"Send Key(Google)",
+            u"Send Key(Google)",
             count
         )
     
     name = "send"
-    verbose_name = _("Send Key(Azure)")
+    verbose_name = _("Send Key(Google)")
     icon = "cloud-upload"
 
     def action(self, request, key_id):
@@ -62,37 +62,37 @@ class DeleteSecret(tables.DeleteAction):
     @staticmethod
     def action_present(count):
         return ngettext_lazy(
-            u"Delete Key",
-            u"Delete Keys",
+            u"Delete Key Version",
+            u"Delete Key Versions",
             count
         )
     
     @staticmethod
     def action_past(count):
         return ngettext_lazy(
-            u"Deleted Key",
-            u"Deleted Keys",
+            u"Deleted Key Version",
+            u"Deleted Key Versions",
             count
         )
     
     def delete(self, request, key_id):
         try:
-            api.delete_key(key_id)
+            api.delete_key_versions(key_id)
         except Exception:
-            exceptions.handle(request, _("Unable to delete keys."))
+            exceptions.handle(request, _("Unable to delete key versions."))
 
 class SecretsTable(tables.DataTable):
 
     name = tables.Column('name', verbose_name=_("Name"))
     key_id = tables.Column('key_id', verbose_name=_("Key ID"))
     key_version_count = tables.Column('key_version_count', verbose_name=_("Key Version Count"))
-    vault_name = tables.Column('vault_name', verbose_name=_("Vault Name"))
-    key_enabled = tables.Column('key_enabled', verbose_name=_("Key Enabled"))
+    key_ring_id = tables.Column('key_ring_id', verbose_name=_("Key Ring ID"))
+    key_status = tables.Column('key_status', verbose_name=_("Key Status"))
     time_created = tables.Column('time_created', verbose_name=_("Created At"))
     origin_key_id = tables.Column('origin_key_id', verbose_name=_("Origin Key ID"))
 
     class Meta(object):
-        name = "azure"
-        verbose_name = _("Azure")
+        name = "google"
+        verbose_name = _("Google")
         table_actions = (SecretsFilterAction, DeleteSecret,)
         row_actions = (AutoRotateSecret, SendSecret,)

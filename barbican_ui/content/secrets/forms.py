@@ -8,6 +8,7 @@ from horizon import messages
 from . import api
 from barbican_ui.content.oracle import api as oracle_api
 from barbican_ui.content.azure import api as azure_api
+from barbican_ui.content.google import api as google_api
 
 class CreateSecretForm(forms.SelfHandlingForm):
 
@@ -91,7 +92,7 @@ class SendSecretAzureForm(forms.SelfHandlingForm):
                     max_length=255,
                     label=_('Key Name'),
                     initial=self.request.GET.get('name', ''),
-                    help_text=_('Name of the Oracle KMS key.'),
+                    help_text=_('Name of the Azure KMS key.'),
                     regex=r"^[a-zA-Z][a-zA-Z0-9_.-]*$",
                     error_messages={'invalid':
                                     _('Name must start with a letter and may '
@@ -109,6 +110,48 @@ class SendSecretAzureForm(forms.SelfHandlingForm):
     def handle(self, request, data):
         try:
             azure_api.byok_azure(data['vault'], data['name'], data['name'], False)
+            messages.success(request, _("Successfully send a key: %s") % data['name'])
+            return True
+        except Exception:
+            exceptions.handle(request)
+            return False
+
+class SendSecretGoogleForm(forms.SelfHandlingForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields = collections.OrderedDict([
+            (
+                'key_ring',
+                forms.ChoiceField(
+                    label=_("Key Ring Name"),
+                    widget=forms.SelectWidget(),
+                    choices=self.get_key_ring_choices()
+                )
+            ),
+            (
+                'name',
+                forms.RegexField(
+                    max_length=255,
+                    label=_('Key Name'),
+                    initial=self.request.GET.get('name', ''),
+                    help_text=_('Name of the Google KMS key.'),
+                    regex=r"^[a-zA-Z][a-zA-Z0-9_.-]*$",
+                    error_messages={'invalid':
+                                    _('Name must start with a letter and may '
+                                    'only contain letters, numbers, underscores, '
+                                    'periods and hyphens.')})
+            )
+        ])
+    
+    def get_key_ring_choices(self):
+        key_ring_ids = google_api.list_key_ring_ids()
+        choices = [(key_ring_id, key_ring_id) for key_ring_id in key_ring_ids]
+
+        return choices
+
+    def handle(self, request, data):
+        try:
+            google_api.byok_google(data['key_ring'], data['name'], False)
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
         except Exception:
