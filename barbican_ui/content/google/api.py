@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime
 import concurrent.futures
 from cryptography.hazmat.backends import default_backend
@@ -91,6 +92,11 @@ def import_manually_wrapped_key(project_id, location_id, key_ring_id, crypto_key
     wrapped_target_key = keywrap.aes_key_wrap_with_padding(kwp_key, payload, default_backend())
 
     import_job = client.get_import_job(name=import_job_path)
+    # インポートジョブが作られるまで待つ
+    while import_job.state == kms.ImportJob.ImportJobState.PENDING_GENERATION:
+        time.sleep(0.5)
+        import_job = client.get_import_job(name=import_job_path)
+        
     import_job_pub = serialization.load_pem_public_key(
         bytes(import_job.public_key.pem, "UTF-8"), default_backend()
     )
