@@ -1,7 +1,10 @@
 import base64
+from time import sleep
 from datetime import datetime, timedelta, timezone
 import oci
 from oci.key_management import KmsVaultClient, KmsManagementClient
+from oci.key_management.models import Key, KeyShape, ImportKeyDetails, ImportKeyVersionDetails
+from oci.key_management.models import CreateVaultDetails, UpdateKeyDetails, ScheduleKeyDeletionDetails
 import concurrent.futures
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
@@ -48,7 +51,7 @@ def fetch_keys_for_vault(vault, config, compartment_id):
     for key in keys:
         version_count = len(manage_client.list_key_versions(key.id).data)
         key_data = KeyData(
-            id=key.id,
+            id=vault.id + '/' + key.id,
             name=key.display_name,
             key_id=key.id,
             #key_version=manage_client.get_key(key.id).data.current_key_version,
@@ -85,34 +88,30 @@ def get_key_data(**search_opts):
 
     return key_data_list
 
+def get_kms_management_client(vault_id):
+    config = oci.config.from_file()
+    kms_vault_client = KmsVaultClient(config)
+    vault = kms_vault_client.get_vault(vault_id).data
+
+    return KmsManagementClient(config, vault.management_endpoint)
+
 def list_vault_names():
     config = oci.config.from_file()
     compartment_id = config["compartment_id"]
 
     kms_vault_client = KmsVaultClient(config)
     vaults = kms_vault_client.list_vaults(compartment_id).data
-    vault_names = [vault.display_name for vault in vaults]
+    vault_names = [f'{vault.display_name} / {vault.id}' for vault in vaults]
 
     return vault_names
 
-def get_vault(vault_client, compartment_id, display_name):
-    existing_vaults = vault_client.list_vaults(compartment_id=compartment_id).data
-    vault = next((v for v in existing_vaults if v.display_name == display_name), None)
-
-    return vault
-
 def create_vault(vault_client, compartment_id, display_name):
-    # 同名のvaultがあれば作成しない
-    existing_vaults = vault_client.list_vaults(compartment_id=compartment_id).data
-    vault = next((v for v in existing_vaults if v.display_name == display_name), None)
-
-    if not vault:
-        vault_details = oci.key_management.models.CreateVaultDetails(
-            compartment_id=compartment_id,
-            display_name=display_name,
-            vault_type='DEFAULT'
-        )
-        vault = vault_client.create_vault(create_vault_details=vault_details).data
+    vault_details = CreateVaultDetails(
+        compartment_id=compartment_id,
+        display_name=display_name,
+        vault_type='DEFAULT'
+    )
+    vault = vault_client.create_vault(create_vault_details=vault_details).data
 
     return vault
 
@@ -147,13 +146,13 @@ def import_key(manage_client, compartment_id, display_name, key_material, origin
         "keyMaterial": key_material
     }
 
-    key_shape = oci.key_management.models.KeyShape(
+    key_shape = KeyShape(
         algorithm="AES",
         length=32
     )
 
     # インポートの実行
-    import_key_details = oci.key_management.models.ImportKeyDetails(
+    import_key_details = ImportKeyDetails(
         compartment_id=compartment_id,
         display_name=display_name,
         key_shape=key_shape,
@@ -165,35 +164,22 @@ def import_key(manage_client, compartment_id, display_name, key_material, origin
 
     return imported_key
 
-def byok_oci(vault_name, key_name, do_rotate=False):
+def byok_oci(vault_id, key_name):
     conn = barbican_api.get_connection()
 
-    # キーのローテーションを行う場合、新しいシークレットを作成
-    if do_rotate:
-        secret = barbican_api.create_secret(conn, key_name)
-    else:
-        # 既存のシークレットを検索
-        secrets = conn.key_manager.secrets()
-        for sec in secrets:
-            if sec.name == key_name:
-                secret = sec
-                # TODO: 要修正
-                secret.payload = '0123456789abcdef0123456789abcdef'
+    # 既存のシークレットを検索
+    secrets = conn.key_manager.secrets()
+    for sec in secrets:
+        if sec.name == key_name:
+            secret = sec
+            # TODO: 要修正
+            secret.payload = '0123456789abcdef0123456789abcdef'
 
     plaintext_key = secret.payload.encode()
 
     config = oci.config.from_file()
     compartment_id = config["compartment_id"]
-
-    vault_client = KmsVaultClient(config)
-    vault = get_vault(vault_client, compartment_id, vault_name)
-
-    service_endpoint = vault.management_endpoint
-
-    manage_client = KmsManagementClient(
-        config=config,
-        service_endpoint=service_endpoint
-    )
+    manage_client = get_kms_management_client(vault_id)
 
     # キーマテリアルの作成
     key_material = create_key_material(manage_client, plaintext_key)
@@ -207,7 +193,7 @@ def import_key_version(manage_client, key_id, key_material, origin_key_id):
         "keyMaterial": key_material
     }
 
-    import_key_version_details = oci.key_management.models.ImportKeyVersionDetails(
+    import_key_version_details = ImportKeyVersionDetails(
         wrapped_import_key=wrapped_import_key_json,
         freeform_tags={"OriginKeyID": origin_key_id}
     )
@@ -216,63 +202,53 @@ def import_key_version(manage_client, key_id, key_material, origin_key_id):
 
     return res
 
-def rotate_key_in_vault(vault, key_id, config, compartment_id, origin_key):
-    service_endpoint = vault.management_endpoint
-    manage_client = KmsManagementClient(config, service_endpoint)
-    keys = manage_client.list_keys(compartment_id).data
+def wait_for_key_rotation(manage_client, key_id):
+    while True:
+        key = manage_client.get_key(key_id).data
+        if key.lifecycle_state == Key.LIFECYCLE_STATE_ENABLED:
+            return key.lifecycle_state
+        sleep(1)
 
-    for key in keys:
-        if key.id == key_id:
-            key_material = create_key_material(manage_client, origin_key.payload.encode())
-            import_key_version(manage_client, key_id, key_material, origin_key.secret_id)
+def update_key_tags(manage_client, key_id, origin_key_id):
+    update_key_details = UpdateKeyDetails(
+        freeform_tags={"OriginKeyID": origin_key_id}
+    )
 
-def rotate_key(key_id):
+    res = manage_client.update_key(key_id, update_key_details)
+    return res
+
+def rotate_key(vault_id, key_id):
+    manage_client = get_kms_management_client(vault_id)
+    key = manage_client.get_key(key_id).data
+
     conn = barbican_api.get_connection()
-    key_name = f'key_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
-    secret = barbican_api.create_secret(conn, key_name)
+    version_count = len(manage_client.list_key_versions(key_id).data) + 1
+    key_name = f'{key.display_name}_v{version_count}'
+    origin_key = barbican_api.create_secret(conn, key_name)
 
-    config = oci.config.from_file()
-    compartment_id = config["compartment_id"]
+    key_material = create_key_material(manage_client, origin_key.payload.encode())
+    import_key_version(manage_client, key_id, key_material, origin_key.secret_id)
 
-    kms_vault_client = KmsVaultClient(config)
-    vaults = kms_vault_client.list_vaults(compartment_id).data
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(rotate_key_in_vault, vault, key_id, config, compartment_id, secret) for vault in vaults]
-        for future in concurrent.futures.as_completed(futures):
-            future.result()
-
-def delete_key_in_vault(vault, key_id, config, compartment_id):
-    service_endpoint = vault.management_endpoint
-    manage_client = KmsManagementClient(config, service_endpoint)
-    keys = manage_client.list_keys(compartment_id).data
-
-    for key in keys:
-        if key.id == key_id:
-            time_of_deletion = datetime.now(timezone.utc) + timedelta(days=7)
-            delete_details = oci.key_management.models.ScheduleKeyDeletionDetails(
-                time_of_deletion=time_of_deletion
-            )
-            manage_client.schedule_key_deletion(key_id, delete_details)
+    # OriginKeyIDタグを更新
+    wait_for_key_rotation(manage_client, key_id)
+    update_key_tags(manage_client, key_id, origin_key.secret_id)
 
 def delete_key(key_id):
-    config = oci.config.from_file()
-    compartment_id = config["compartment_id"]
+    manage_client = get_kms_management_client
 
-    kms_vault_client = KmsVaultClient(config)
-    vaults = kms_vault_client.list_vaults(compartment_id).data
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(delete_key_in_vault, vault, key_id, config, compartment_id) for vault in vaults]
-        for future in concurrent.futures.as_completed(futures):
-            future.result()
+    time_of_deletion = datetime.now(timezone.utc) + timedelta(days=7)
+    delete_details = ScheduleKeyDeletionDetails(
+        time_of_deletion=time_of_deletion
+    )
+    manage_client.schedule_key_deletion(key_id, delete_details)
 
 class BYOKOracleAction(actions.Action):
-    def __init__(self, key_id):
+    def __init__(self, vault_id, key_id):
+        self.vault_id = vault_id
         self.key_id = key_id
     
     def run(self, context):
-        rotate_key(self.key_id)
+        rotate_key(self.vault_id, self.key_id)
 
 def get_workflow(conn, name):
     workflows = conn.workflow.workflows()
@@ -288,11 +264,13 @@ version: '2.0'
 rotate_oracle_workflow:
   type: direct
   input:
+    - vault_id
     - key_id
   tasks:
     execute_byok_oracle:
       action: byok.oracle
       input:
+        vault_id: <% $.vault_id %>
         key_id: <% $.key_id %>
       on-success: notify_execution
     notify_execution:
@@ -305,11 +283,12 @@ rotate_oracle_workflow:
 
     return workflow
 
-def create_cron_trigger(conn, workflow_name, key_id, pattern):
+def create_cron_trigger(conn, workflow_name, vault_id, key_id, pattern):
     trigger = conn.workflow.create_cron_trigger(
         name=f'key_rotation_{key_id}',
         workflow_name=workflow_name,
         workflow_input={
+            "vault_id": vault_id,
             "key_id": key_id
         },
         pattern=pattern,
@@ -317,12 +296,12 @@ def create_cron_trigger(conn, workflow_name, key_id, pattern):
     )
     return trigger
 
-def auto_rotate_key(key_id, pattern):
+def auto_rotate_key(vault_id, key_id, pattern):
     conn = barbican_api.get_connection()
     workflow_name = 'rotate_oracle_workflow'
     workflow_created = get_workflow(conn, workflow_name)
     if workflow_created is None:
         create_workflow(conn)
-    trigger = create_cron_trigger(conn, workflow_name, key_id, pattern)
+    trigger = create_cron_trigger(conn, workflow_name, vault_id, key_id, pattern)
 
     return trigger

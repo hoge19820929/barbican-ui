@@ -39,9 +39,12 @@ class SendSecret(tables.BatchAction):
     verbose_name = _("Send Key(Oracle)")
     icon = "cloud-upload"
 
-    def action(self, request, key_id):
+    def action(self, request, row_id):
         try:
-            api.rotate_key(key_id)
+            # row_id: {vault_id}/{key_id}
+            vault_id = row_id.split('/')[0]
+            key_id = row_id.split('/')[1]
+            api.rotate_key(vault_id, key_id)
         except Exception:
             exceptions.handle(request, _("Unable to send key."))
 
@@ -54,7 +57,14 @@ class AutoRotateSecret(tables.LinkAction):
 
     def get_link_url(self, datum):
         base_url = reverse(self.url)
-        params = urlencode({"key_id": datum.key_id})
+        # datum.id: {vault_id}/{key_id}
+        vault_id = datum.id.split('/')[0]
+        key_id = datum.id.split('/')[1]
+        params = urlencode({
+            "key_name": datum.name,
+            "vault_id": vault_id,
+            "key_id": key_id
+        })
 
         return "?".join([base_url, params])
 
@@ -75,9 +85,12 @@ class DeleteSecret(tables.DeleteAction):
             count
         )
     
-    def delete(self, request, key_id):
+    def delete(self, request, row_id):
         try:
-            api.delete_key(key_id)
+            # row_id: {vault_id}/{key_id}
+            vault_id = row_id.split('/')[0]
+            key_id = row_id.split('/')[1]
+            api.delete_key(vault_id, key_id)
         except Exception:
             exceptions.handle(request, _("Unable to delete keys."))
 

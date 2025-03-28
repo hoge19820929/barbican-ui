@@ -12,17 +12,27 @@ class AutoRotateSecretForm(forms.SelfHandlingForm):
         super().__init__(*args, **kwargs)
         self.fields = collections.OrderedDict([
             (
+                'key_name',
+                forms.CharField(
+                    label=_('Key Name'),
+                    widget=forms.TextInput(attrs={'readonly': 'readonly'}),
+                    initial=self.request.GET.get('key_name', ''),
+                )
+            ),
+            (
+                'vault_id',
+                forms.CharField(
+                    widget=forms.HiddenInput(),
+                    initial=self.request.GET.get('vault_id', ''),
+                )
+            ),
+            (
                 'key_id',
-                forms.RegexField(
-                    max_length=255,
+                forms.CharField(
                     label=_('Key ID'),
+                    widget=forms.TextInput(attrs={'readonly': 'readonly'}),
                     initial=self.request.GET.get('key_id', ''),
-                    help_text=_('Key ID of the Oracle KMS key.'),
-                    regex=r"^[a-zA-Z][a-zA-Z0-9_.-]*$",
-                    error_messages={'invalid':
-                                    _('Name must start with a letter and may '
-                                    'only contain letters, numbers, underscores, '
-                                    'periods and hyphens.')})
+                )
             ),
             (
                 'pattern',
@@ -36,7 +46,7 @@ class AutoRotateSecretForm(forms.SelfHandlingForm):
 
     def handle(self, request, data):
         try:
-            api.auto_rotate_key(data['key_id'], data['pattern'])
+            api.auto_rotate_key(data['vault_id'], data['key_id'], data['pattern'])
             messages.success(request, _("Successfully set auto rotation: %s") % data['key_id'])
             return True
         except Exception:

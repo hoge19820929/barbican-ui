@@ -39,7 +39,7 @@ class SendSecretOracleForm(forms.SelfHandlingForm):
             (
                 'vault',
                 forms.ChoiceField(
-                    label=_("Vault Name"),
+                    label=_("Vault Name / Vault ID"),
                     widget=forms.SelectWidget(),
                     choices=self.get_vault_choices()
                 )
@@ -67,7 +67,9 @@ class SendSecretOracleForm(forms.SelfHandlingForm):
 
     def handle(self, request, data):
         try:
-            oracle_api.byok_oci(data['vault'], data['name'], False)
+            # data['vault']: {vault_name} / {vault_id}
+            vault_id = data['vault'].split(' / ')[1]
+            oracle_api.byok_oci(vault_id, data['name'])
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
         except Exception:
