@@ -233,8 +233,8 @@ def rotate_key(vault_id, key_id):
     wait_for_key_rotation(manage_client, key_id)
     update_key_tags(manage_client, key_id, origin_key.secret_id)
 
-def delete_key(key_id):
-    manage_client = get_kms_management_client
+def delete_key(vault_id, key_id):
+    manage_client = get_kms_management_client(vault_id)
 
     time_of_deletion = datetime.now(timezone.utc) + timedelta(days=7)
     delete_details = ScheduleKeyDeletionDetails(
