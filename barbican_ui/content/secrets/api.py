@@ -76,8 +76,8 @@ def update_container(conn, container_id, secret_ref):
 
     return conn.session.post(url, json=secret_ref)
 
-def get_key_data(**kwargs):
-    conn = get_connection()
+def get_key_data(request, **kwargs):
+    conn = create_connection(request)
     keys = conn.key_manager.secrets(**kwargs)
 
     key_data_list = []
