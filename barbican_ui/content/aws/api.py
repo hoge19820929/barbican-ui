@@ -252,12 +252,23 @@ def rotate_kms_key(kms_client, alias_name, new_id):
         TargetKeyId=new_id
     )
 
+def get_key_id_from_alias(kms_client, alias_name):
+    try:
+        response = kms_client.describe_key(
+            KeyId=alias_name
+        )
+        key_id = response['KeyMetadata']['KeyId']
+        return key_id
+    except Exception:
+        return None
+
 def byok_aws(key_name, alias_name, do_rotate=False):
+    kms_client = boto3.client('kms')
     conn = barbican_api.get_connection()
 
     # キーのローテーションを行う場合、新しいシークレットを作成
     if do_rotate:
-        secret = barbican_api.create_secret(conn, key_name)
+        key_id = get_key_id_from_alias(kms_client, alias_name)
         origin_key_id = get_origin_key_id(key_id, kms_client)
         if origin_key_id is None:
             secret = barbican_api.create_secret(conn, key_name)
@@ -275,7 +286,6 @@ def byok_aws(key_name, alias_name, do_rotate=False):
     secret_id = secret.secret_id
     plaintext_key = secret.payload.encode()
 
-    kms_client = boto3.client('kms')
     # ステップ 1: キーマテリアルなしで AWS KMS key を作成する
     key_id = kms_create_key(kms_client)
 
