@@ -155,9 +155,13 @@ def byok_google(key_ring_id, key_id, do_rotate = False):
     conn = barbican_api.get_connection()
 
     if do_rotate:
-        secret = barbican_api.create_secret(conn, key_id)
         # ローテーション対象のキーを取得
         crypto_key = get_rotation_crypto_key(project_id, location_id, key_ring_id, key_id)
+        origin_key_id = crypto_key.labels.get('origin_key_id', None)
+        if origin_key_id is None:
+            secret = barbican_api.create_secret(conn, key_id)
+        else:
+            secret = barbican_api.create_new_version_secret(origin_key_id)
     else:
         secrets = conn.key_manager.secrets()
         for sec in secrets:

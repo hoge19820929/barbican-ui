@@ -3,7 +3,6 @@ import json
 import os
 import subprocess
 import configparser
-from datetime import datetime
 import concurrent.futures
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, keywrap, serialization
@@ -33,6 +32,11 @@ def get_key(vault_name, key_name):
     key_client = KeyClient(vault_url=f'https://{vault_name}.vault.azure.net/', credential=credential)
 
     return key_client.get_key(key_name)
+
+def get_origin_key_id(vault_name, key_name):
+    key = get_key(vault_name, key_name)
+
+    return key.properties.tags.get('OriginKeyID', None)
 
 def get_public_key(key):
     return rsa.RSAPublicNumbers(
@@ -85,16 +89,16 @@ def import_key_azure(vault_name, key_name, byok_str, origin_key_id):
 
     return subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-def byok_azure(vault_name, key_name, origin_key_name, do_rotate=False):
+def byok_azure(vault_name, key_name, origin_key_id, do_rotate=False):
     conn = barbican_api.get_connection()
 
     if do_rotate:
-        secret = barbican_api.create_secret(conn, origin_key_name)
+        if origin_key_id is None:
+            secret = barbican_api.create_secret(conn, key_name)
+        else:
+            secret = barbican_api.create_new_version_secret(origin_key_id)
     else:
-        secrets = conn.key_manager.secrets()
-        for sec in secrets:
-            if sec.name == origin_key_name:
-                secret = sec
+        secret = conn.key_manager.get_secret(origin_key_id)
 
     # クライアントKMSの鍵を使うように要修正
     target_key = rsa.generate_private_key(
@@ -237,9 +241,9 @@ def rotate_key(key_id):
     domain_and_path = url_without_protocol.split('/')
     vault_name = domain_and_path[0].split('.')[0]
     key_name = key_id.split('/keys/')[1].split('/')[0]
-    origin_key_name = f'{key_name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+    origin_key_id = get_origin_key_id(vault_name, key_name)
 
-    byok_azure(vault_name, key_name, origin_key_name, True)
+    byok_azure(vault_name, key_name, origin_key_id, True)
 
 def delete_key(key_id):
     credential = DefaultAzureCredential()

@@ -89,6 +89,13 @@ class SendSecretAzureForm(forms.SelfHandlingForm):
                 )
             ),
             (
+                'key_id',
+                forms.CharField(
+                    widget=forms.HiddenInput(),
+                    initial=self.request.GET.get('key_id', ''),
+                )
+            ),
+            (
                 'name',
                 forms.RegexField(
                     max_length=255,
@@ -111,7 +118,7 @@ class SendSecretAzureForm(forms.SelfHandlingForm):
 
     def handle(self, request, data):
         try:
-            azure_api.byok_azure(data['vault'], data['name'], data['name'], False)
+            azure_api.byok_azure(data['vault'], data['name'], data['key_id'])
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
         except Exception:

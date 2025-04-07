@@ -220,11 +220,12 @@ def update_key_tags(manage_client, key_id, origin_key_id):
 def rotate_key(vault_id, key_id):
     manage_client = get_kms_management_client(vault_id)
     key = manage_client.get_key(key_id).data
-
-    conn = barbican_api.get_connection()
-    version_count = len(manage_client.list_key_versions(key_id).data) + 1
-    key_name = f'{key.display_name}_v{version_count}'
-    origin_key = barbican_api.create_secret(conn, key_name)
+    origin_key_id = key.freeform_tags.get('OriginKeyID', None)
+    if origin_key_id is None:
+        conn = barbican_api.get_connection()
+        origin_key = barbican_api.create_secret(conn, key.display_name, None)
+    else:
+        origin_key = barbican_api.create_new_version_secret(origin_key_id)
 
     key_material = create_key_material(manage_client, origin_key.payload.encode())
     import_key_version(manage_client, key_id, key_material, origin_key.secret_id)

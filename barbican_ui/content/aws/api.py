@@ -95,6 +95,11 @@ def list_key_tags(key_id, kms_client):
     tags = {tag['TagKey']: tag['TagValue'] for tag in response['Tags']}
     return tags
 
+def get_origin_key_id(key_id, kms_client):
+    tags = list_key_tags(key_id, kms_client)
+
+    return tags.get('OriginKeyID', None)
+
 def determine_key_type(key_spec):
     symmetric_specs = [
         'SYMMETRIC_DEFAULT', 'HMAC_224', 'HMAC_256', 'HMAC_384', 'HMAC_512'
@@ -253,6 +258,11 @@ def byok_aws(key_name, alias_name, do_rotate=False):
     # キーのローテーションを行う場合、新しいシークレットを作成
     if do_rotate:
         secret = barbican_api.create_secret(conn, key_name)
+        origin_key_id = get_origin_key_id(key_id, kms_client)
+        if origin_key_id is None:
+            secret = barbican_api.create_secret(conn, key_name)
+        else:
+            secret = barbican_api.create_new_version_secret(origin_key_id)
     else:
         # 既存のシークレットを検索
         secrets = conn.key_manager.secrets()

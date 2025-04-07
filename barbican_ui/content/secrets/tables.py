@@ -12,13 +12,11 @@ from barbican_ui.content.aws import api as aws_api
 class SecretsFilterAction(tables.FilterAction):
     filter_type = 'server'
     filter_choices = (('name', _('Secret Name ='), True, _('Case-sensitive')),
-                      ('status', _('Status ='), True),
-                      ('secret_id', _('Secret ID ='), True),
-                      ('algorithm', _('Algorithm ='), True),
-                      ('bit_length', _('Bit Length ='), True),
-                      ('mode', _('Mode ='), True),
-                      ('created_at', _('Created At ='), True),
-                      ('expires_at', _('Expires At ='), True))
+                      ('key_id', _('Key ID ='), True),
+                      ('key_version', _('Key Version ='), True),
+                      ('container_id', _('Container ID ='), True),
+                      ('key_state', _('Key State ='), True),
+                      ('time_created', _('Time Created ='), True))
 
 class CreateSecret(tables.LinkAction):
     name = "create"
@@ -80,7 +78,7 @@ class SendAzureKey(tables.LinkAction):
 
     def get_link_url(self, datum):
         base_url = reverse(self.url)
-        params = urlencode({"name": datum.name})
+        params = urlencode({"name": datum.name, "key_id": datum.key_id})
 
         return "?".join([base_url, params])
 
@@ -123,13 +121,11 @@ class DeleteSecret(tables.DeleteAction):
 class SecretsTable(tables.DataTable):
 
     name = tables.Column('name', verbose_name=_("Name"))
-    status = tables.Column('status', verbose_name=_("Status"))
-    secret_id = tables.Column('secret_id', verbose_name=_("Secret ID"))
-    algorithm = tables.Column('algorithm', verbose_name=_("Algorithm"))
-    bit_length = tables.Column('bit_length', verbose_name=_("Bit Length"))
-    mode = tables.Column('mode', verbose_name=_("Mode"))
-    created_at = tables.Column('created_at', verbose_name=_("Created At"))
-    expires_at = tables.Column('expires_at', verbose_name=_("Expires At"))
+    key_id = tables.Column('key_id', verbose_name=_("Key ID"))
+    key_version = tables.Column('key_version', verbose_name=_("Key Version"))
+    container_id = tables.Column('container_id', verbose_name=_("Container ID"))
+    key_state = tables.Column('key_state', verbose_name=_("Key State"))
+    time_created = tables.Column('time_created', verbose_name=_("Time Created"))
 
     class Meta(object):
         name = "secrets"
