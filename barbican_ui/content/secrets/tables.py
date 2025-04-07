@@ -50,7 +50,7 @@ class SendAWSKey(tables.BatchAction):
         try:
             secrets = api.get_secrets(request)
             for secret in secrets:
-                if secret.id == obj_id:
+                if secret.secret_id == obj_id:
                     alias = secret.name
             aws_api.byok_aws(alias, 'alias/' + alias, False)
         except Exception:
