@@ -103,6 +103,11 @@ def get_key_data(request, **kwargs):
     
     return key_data_list
 
+def get_secret(request, secret_id):
+    conn = create_connection(request)
+
+    return conn.key_manager.get_secret(secret_id)
+
 def get_secrets(request, **kwargs):
     conn = create_connection(request)
 

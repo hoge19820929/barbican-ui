@@ -48,18 +48,11 @@ class KeyData(resource.Resource):
 
 def get_key_alias(key_id):
     kms_client = boto3.client('kms')
-
-    response = kms_client.list_aliases()
-
-    for alias in response['Aliases']:
-        if 'TargetKeyId' in alias and alias['TargetKeyId'] == key_id:
-            alias_name = alias['AliasName']
-
-            if alias_name.startswith('alias/'):
-                alias_name = alias_name[len('alias/'):]
-            return alias_name
+    aliases = list_key_aliases(key_id, kms_client)
+    if aliases is None:
+        return None
     
-    return None
+    return aliases[0]
 
 def list_kms_keys():
     kms_client = boto3.client('kms')
@@ -262,26 +255,18 @@ def get_key_id_from_alias(kms_client, alias_name):
     except Exception:
         return None
 
-def byok_aws(key_name, alias_name, do_rotate=False):
+def byok_aws(key_name, alias_name, do_rotate, secret=None):
     kms_client = boto3.client('kms')
-    conn = barbican_api.get_connection()
 
     # キーのローテーションを行う場合、新しいシークレットを作成
     if do_rotate:
         key_id = get_key_id_from_alias(kms_client, alias_name)
         origin_key_id = get_origin_key_id(key_id, kms_client)
         if origin_key_id is None:
+            conn = barbican_api.get_connection()
             secret = barbican_api.create_secret(conn, key_name)
         else:
             secret = barbican_api.create_new_version_secret(origin_key_id)
-    else:
-        # 既存のシークレットを検索
-        secrets = conn.key_manager.secrets()
-        for sec in secrets:
-            if sec.name == key_name:
-                secret = sec
-                # TODO: 要修正
-                secret.payload = '0123456789abcdef0123456789abcdef'
 
     secret_id = secret.secret_id
     plaintext_key = secret.payload.encode()
