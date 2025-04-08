@@ -145,7 +145,7 @@ def get_rotation_crypto_key(project_id, location_id, key_ring_id, crypto_key_id)
     crypto_key_path = client.crypto_key_path(project_id, location_id, key_ring_id, crypto_key_id)
     return client.get_crypto_key(name=crypto_key_path)
 
-def byok_google(key_ring_id, key_id, do_rotate = False):
+def byok_google(key_ring_id, key_id, do_rotate, secret=None):
     project_id = get_project_id()
     # TODO: FIXME
     location_id = 'us-central1'
@@ -163,12 +163,6 @@ def byok_google(key_ring_id, key_id, do_rotate = False):
         else:
             secret = barbican_api.create_new_version_secret(origin_key_id)
     else:
-        secrets = conn.key_manager.secrets()
-        for sec in secrets:
-            if sec.name == key_id:
-                secret = sec
-                # TODO: FIXME
-                secret.payload = '0123456789abcdef0123456789abcdef'
         # Google KMSにキーバージョンが空のキーを作成
         crypto_key = create_key_for_import(project_id, location_id, key_ring_id, key_id)
     

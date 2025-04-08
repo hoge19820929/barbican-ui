@@ -63,7 +63,7 @@ class SendOracleKey(tables.LinkAction):
 
     def get_link_url(self, datum):
         base_url = reverse(self.url)
-        params = urlencode({"name": datum.name})
+        params = urlencode({"name": datum.name, "key_id": datum.key_id})
 
         return "?".join([base_url, params])
 
@@ -89,7 +89,7 @@ class SendGoogleKey(tables.LinkAction):
 
     def get_link_url(self, datum):
         base_url = reverse(self.url)
-        params = urlencode({"name": datum.name})
+        params = urlencode({"name": datum.name, "key_id": datum.key_id})
 
         return "?".join([base_url, params])
 

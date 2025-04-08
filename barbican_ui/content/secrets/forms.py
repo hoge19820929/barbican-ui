@@ -45,6 +45,13 @@ class SendSecretOracleForm(forms.SelfHandlingForm):
                 )
             ),
             (
+                'key_id',
+                forms.CharField(
+                    widget=forms.HiddenInput(),
+                    initial=self.request.GET.get('key_id', ''),
+                )
+            ),
+            (
                 'name',
                 forms.RegexField(
                     max_length=255,
@@ -69,7 +76,8 @@ class SendSecretOracleForm(forms.SelfHandlingForm):
         try:
             # data['vault']: {vault_name} / {vault_id}
             vault_id = data['vault'].split(' / ')[1]
-            oracle_api.byok_oci(vault_id, data['name'])
+            secret = api.get_secret(request, data['key_id'])
+            oracle_api.byok_oci(vault_id, data['name'], secret)
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
         except Exception:
@@ -138,6 +146,13 @@ class SendSecretGoogleForm(forms.SelfHandlingForm):
                 )
             ),
             (
+                'key_id',
+                forms.CharField(
+                    widget=forms.HiddenInput(),
+                    initial=self.request.GET.get('key_id', ''),
+                )
+            ),
+            (
                 'name',
                 forms.RegexField(
                     max_length=255,
@@ -160,7 +175,8 @@ class SendSecretGoogleForm(forms.SelfHandlingForm):
 
     def handle(self, request, data):
         try:
-            google_api.byok_google(data['key_ring'], data['name'], False)
+            secret = api.get_secret(request, data['key_id'])
+            google_api.byok_google(data['key_ring'], data['name'], False, secret)
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
         except Exception:

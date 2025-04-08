@@ -164,17 +164,7 @@ def import_key(manage_client, compartment_id, display_name, key_material, origin
 
     return imported_key
 
-def byok_oci(vault_id, key_name):
-    conn = barbican_api.get_connection()
-
-    # 既存のシークレットを検索
-    secrets = conn.key_manager.secrets()
-    for sec in secrets:
-        if sec.name == key_name:
-            secret = sec
-            # TODO: 要修正
-            secret.payload = '0123456789abcdef0123456789abcdef'
-
+def byok_oci(vault_id, key_name, secret):
     plaintext_key = secret.payload.encode()
 
     config = oci.config.from_file()
