@@ -18,25 +18,25 @@ class SecretsFilterAction(tables.FilterAction):
                       ('time_created', _('Created At ='), True),
                       ('origin_key_id', _('Origin Key ID ='), True))
 
-class SendSecret(tables.BatchAction):
+class RotateSecret(tables.BatchAction):
     @staticmethod
     def action_present(count):
         return ngettext_lazy(
-            u"Send Key(Oracle)",
-            u"Send Key(Oracle)",
+            u"Rotate Key(Oracle)",
+            u"Rotate Key(Oracle)",
             count
         )
 
     @staticmethod
     def action_past(count):
         return ngettext_lazy(
-            u"Send Key(Oracle)",
-            u"Send Key(Oracle)",
+            u"Rotate Key(Oracle)",
+            u"Rotate Key(Oracle)",
             count
         )
     
-    name = "send"
-    verbose_name = _("Send Key(Oracle)")
+    name = "rotate"
+    verbose_name = _("Rotate Key(Oracle)")
     icon = "cloud-upload"
 
     def action(self, request, row_id):
@@ -44,9 +44,9 @@ class SendSecret(tables.BatchAction):
             # row_id: {vault_id}/{key_id}
             vault_id = row_id.split('/')[0]
             key_id = row_id.split('/')[1]
-            api.rotate_key(vault_id, key_id)
+            api.rotate_key(request.user.project_name, vault_id, key_id)
         except Exception:
-            exceptions.handle(request, _("Unable to send key."))
+            exceptions.handle(request, _("Unable to rotate key."))
 
 class AutoRotateSecret(tables.LinkAction):
     name = "auto_rotate"
@@ -108,4 +108,4 @@ class SecretsTable(tables.DataTable):
         name = "oracle"
         verbose_name = _("Oracle")
         table_actions = (SecretsFilterAction, DeleteSecret,)
-        row_actions = (AutoRotateSecret, SendSecret,)
+        row_actions = (AutoRotateSecret, RotateSecret,)

@@ -53,8 +53,8 @@ class RotateSecret(tables.BatchAction):
 
     def action(self, request, obj_id):
         try:
-            alias = api.get_key_alias(obj_id)
-            api.byok_aws(alias, 'alias/' + alias, True)
+            alias = api.get_key_alias(request, obj_id)
+            api.byok_aws(request.user.project_name, alias, 'alias/' + alias, True, request)
         except Exception:
             exceptions.handle(request, _("Unable to rotate secrets."))
 
@@ -90,9 +90,16 @@ class DeleteSecret(tables.DeleteAction):
     
     def delete(self, request, id):
         try:
-            api.schedule_key_deletion(id)
+            api.schedule_key_deletion(request, id)
         except Exception as e:
             exceptions.handle(request, _("Unable to delete secrets."))
+
+class SetAWSCredentials(tables.LinkAction):
+    name = "set_cred"
+    verbose_name = _("Set Access Key")
+    url = "horizon:project:aws:set_cred"
+    classes = ("ajax-modal",)
+    icon = "plus"
 
 class SecretsTable(tables.DataTable):
 
@@ -112,5 +119,5 @@ class SecretsTable(tables.DataTable):
     class Meta(object):
         name = "aws"
         verbose_name = _("AWS Secrets")
-        table_actions = (SecretsFilterAction, DeleteSecret,)
+        table_actions = (SecretsFilterAction, DeleteSecret, SetAWSCredentials,)
         row_actions = (AutoRotateSecret, RotateSecret,)

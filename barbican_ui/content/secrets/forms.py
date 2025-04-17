@@ -126,7 +126,7 @@ class SendSecretAzureForm(forms.SelfHandlingForm):
 
     def handle(self, request, data):
         try:
-            azure_api.byok_azure(data['vault'], data['name'], data['key_id'])
+            azure_api.byok_azure(request.user.project_name, data['vault'], data['name'], data['key_id'])
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
         except Exception:
@@ -176,7 +176,7 @@ class SendSecretGoogleForm(forms.SelfHandlingForm):
     def handle(self, request, data):
         try:
             secret = api.get_secret(request, data['key_id'])
-            google_api.byok_google(data['key_ring'], data['name'], False, secret)
+            google_api.byok_google(request.user.project_name, data['key_ring'], data['name'], False, secret)
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
         except Exception:

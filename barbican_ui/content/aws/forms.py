@@ -59,8 +59,28 @@ class AutoRotateSecretForm(forms.SelfHandlingForm):
 
     def handle(self, request, data):
         try:
-            api.auto_rotate_key(data['name'], 'alias/' + data['name'], data['pattern'])
+            api.auto_rotate_key(request, request.user.project_name, data['name'], 'alias/' + data['name'], data['pattern'])
             messages.success(request, _("Successfully set auto rotation: %s") % data['name'])
+            return True
+        except Exception:
+            exceptions.handle(request)
+            return False
+
+class SetCredentialForm(forms.SelfHandlingForm):
+    key_id = forms.CharField(
+        max_length=255,
+        label=_('AWS Access Key ID'),
+    )
+
+    aws_secret = forms.CharField(
+        max_length=255,
+        label=_('AWS Secret Access Key'),
+    )
+
+    def handle(self, request, data):
+        try:
+            api.set_access_key(request, data['key_id'], data['aws_secret'])
+            messages.success(request, _("Successfully set access key: %s") % data['key_id'])
             return True
         except Exception:
             exceptions.handle(request)

@@ -50,7 +50,7 @@ class SendAWSKey(tables.BatchAction):
         try:
             secret = api.get_secret(request, obj_id)
             alias = secret.name
-            aws_api.byok_aws(alias, 'alias/' + alias, False, secret)
+            aws_api.byok_aws(request.user.project_name, alias, 'alias/' + alias, False, request, secret)
         except Exception:
             exceptions.handle(request, _("Unable to send key."))
 

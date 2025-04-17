@@ -25,8 +25,8 @@ def create_connection(request):
 
     return connection.Connection(session=sess)
 
-def get_connection():
-    return connect(cloud='d_kms')
+def get_connection(project_name):
+    return connect(cloud='rkms', project_name=project_name)
 
 class KeyData(resource.Resource):
     resources_key = 'secrets'
@@ -144,8 +144,7 @@ def create_secret(conn, key_name, container = None):
 
     return secret
 
-def create_new_version_secret(secret_id):
-    conn = get_connection()
+def create_new_version_secret(conn, secret_id):
     secret = conn.key_manager.get_secret(secret_id)
     metadata = get_secret_metadata(conn, secret_id)
     if metadata is None:

@@ -89,14 +89,14 @@ def import_key_azure(vault_name, key_name, byok_str, origin_key_id):
 
     return subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-def byok_azure(vault_name, key_name, origin_key_id, do_rotate=False):
-    conn = barbican_api.get_connection()
+def byok_azure(project_name, vault_name, key_name, origin_key_id, do_rotate=False):
+    conn = barbican_api.get_connection(project_name)
 
     if do_rotate:
         if origin_key_id is None:
             secret = barbican_api.create_secret(conn, key_name)
         else:
-            secret = barbican_api.create_new_version_secret(origin_key_id)
+            secret = barbican_api.create_new_version_secret(conn, origin_key_id)
     else:
         secret = conn.key_manager.get_secret(origin_key_id)
 
@@ -235,7 +235,7 @@ def list_vault_names():
 
     return vault_names
 
-def rotate_key(key_id):
+def rotate_key(project_name, key_id):
     # KEY ID: https://{VAULT_NAME}.vault.azure.net/keys/{KEY_NAME}
     url_without_protocol = key_id.split('//')[1]
     domain_and_path = url_without_protocol.split('/')
@@ -243,7 +243,7 @@ def rotate_key(key_id):
     key_name = key_id.split('/keys/')[1].split('/')[0]
     origin_key_id = get_origin_key_id(vault_name, key_name)
 
-    byok_azure(vault_name, key_name, origin_key_id, True)
+    byok_azure(project_name, vault_name, key_name, origin_key_id, True)
 
 def delete_key(key_id):
     credential = DefaultAzureCredential()
@@ -260,11 +260,12 @@ def delete_key(key_id):
         raise
 
 class BYOKAzureAction(actions.Action):
-    def __init__(self, key_id):
+    def __init__(self, project_name, key_id):
+        self.project_name = project_name
         self.key_id = key_id
     
     def run(self, context):
-        rotate_key(self.key_id)
+        rotate_key(self.project_name, self.key_id)
 
 def get_workflow(conn, name):
     workflows = conn.workflow.workflows()
@@ -274,17 +275,19 @@ def get_workflow(conn, name):
     
     return None
 
-def create_workflow(conn):
-    workflow_definition = """
+def create_workflow(conn, workflow_name):
+    workflow_definition = f"""
 version: '2.0'
-rotate_azure_workflow:
+{workflow_name}:
   type: direct
   input:
+    - project_name
     - key_id
   tasks:
     execute_byok_azure:
       action: byok.azure
       input:
+        project_name: <% $.project_name %>
         key_id: <% $.key_id %>
       on-success: notify_execution
     notify_execution:
@@ -297,11 +300,12 @@ rotate_azure_workflow:
 
     return workflow
 
-def create_cron_trigger(conn, workflow_name, key_id, pattern):
+def create_cron_trigger(conn, workflow_name, project_name, key_id, pattern):
     trigger = conn.workflow.create_cron_trigger(
         name=f'key_rotation_{key_id}',
         workflow_name=workflow_name,
         workflow_input={
+            "project_name": project_name,
             "key_id": key_id
         },
         pattern=pattern,
@@ -309,12 +313,12 @@ def create_cron_trigger(conn, workflow_name, key_id, pattern):
     )
     return trigger
 
-def auto_rotate_key(key_id, pattern):
-    conn = barbican_api.get_connection()
-    workflow_name = 'rotate_azure_workflow'
+def auto_rotate_key(project_name, key_id, pattern):
+    conn = barbican_api.get_connection(project_name)
+    workflow_name = f'rotate_workflow_azure_{project_name}'
     workflow_created = get_workflow(conn, workflow_name)
     if workflow_created is None:
-        create_workflow(conn)
-    trigger = create_cron_trigger(conn, workflow_name, key_id, pattern)
+        create_workflow(conn, workflow_name)
+    trigger = create_cron_trigger(conn, workflow_name, project_name, key_id, pattern)
 
     return trigger

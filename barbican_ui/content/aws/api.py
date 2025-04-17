@@ -8,6 +8,37 @@ from mistral_lib import actions
 
 from barbican_ui.content.secrets import api as barbican_api
 
+def get_kms_client(project_name, request=None):
+    AWS_SECRET_NAME = '__AWS_Credentials'
+    conn = None
+
+    if request:
+        secrets = barbican_api.get_secrets(request)
+    else:
+        conn = barbican_api.get_connection(project_name)
+        secrets = conn.key_manager.secrets()
+    
+    for sec in secrets:
+        if sec.name == AWS_SECRET_NAME:
+            secret_id = sec.secret_id
+            if request:
+                secret = barbican_api.get_secret(request, secret_id)
+            else:
+                secret = conn.key_manager.get_secret(secret_id)
+    
+    if secret is None:
+        return None
+    
+    aws_access_key_id = secret.payload.split(',')[0]
+    aws_secret_access_key = secret.payload.split(',')[1]
+
+    session = boto3.Session(
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+    )
+
+    return session.client('kms')
+
 class KeyData(resource.Resource):
     resources_key = 'aws'
     base_path = '/aws'
@@ -46,16 +77,15 @@ class KeyData(resource.Resource):
     creation_date = resource.Body('creation_date')
     expiration_date = resource.Body('expiration_date')
 
-def get_key_alias(key_id):
-    kms_client = boto3.client('kms')
+def get_key_alias(request, key_id):
+    kms_client = get_kms_client(request.user.project_name, request)
     aliases = list_key_aliases(key_id, kms_client)
     if aliases is None:
         return None
     
     return aliases[0]
 
-def list_kms_keys():
-    kms_client = boto3.client('kms')
+def list_kms_keys(kms_client):
     keys = []
     next_marker = None
     is_truncated = True
@@ -142,9 +172,7 @@ def fetch_key_data(key_id, kms_client):
     )
     return key_data
 
-def get_key_data_parallel(keys, **filter):
-    kms_client = boto3.client('kms')
-
+def get_key_data_parallel(kms_client, keys, **filter):
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = {executor.submit(fetch_key_data, key['KeyId'], kms_client): key for key in keys}
 
@@ -160,9 +188,10 @@ def get_key_data_parallel(keys, **filter):
                         else:
                             continue
 
-def get_secrets(**filter):
-    keys = list_kms_keys()
-    key_data_list = get_key_data_parallel(keys, **filter)
+def get_secrets(request, **filter):
+    kms_client = get_kms_client(request.user.project_name, request)
+    keys = list_kms_keys(kms_client)
+    key_data_list = get_key_data_parallel(kms_client, keys, **filter)
 
     return key_data_list
 
@@ -201,9 +230,10 @@ def import_encrypted_key_material(kms_client, key_id, encrypted_key, import_toke
         KeyId=key_id,
         EncryptedKeyMaterial=encrypted_key,
         ImportToken=import_token,
-        ExpirationModel='KEY_MATERIAL_EXPIRES',
+        ExpirationModel='KEY_MATERIAL_DOES_NOT_EXPIRE',
+        #ExpirationModel='KEY_MATERIAL_EXPIRES',
         # TODO: GUIから設定できるようにする
-        ValidTo=datetime(2025, 6, 17, 12, 0, 0, tzinfo=timezone.utc)
+        #ValidTo=datetime(2025, 6, 17, 12, 0, 0, tzinfo=timezone.utc)
     )
 
 def create_alias(kms_client, key_id, alias_name):
@@ -255,18 +285,22 @@ def get_key_id_from_alias(kms_client, alias_name):
     except Exception:
         return None
 
-def byok_aws(key_name, alias_name, do_rotate, secret=None):
-    kms_client = boto3.client('kms')
+def byok_aws(project_name, key_name, alias_name, do_rotate, request=None, secret=None):
+    if request:
+        kms_client = get_kms_client(project_name, request)
+    else:
+        kms_client = get_kms_client(project_name)
 
     # キーのローテーションを行う場合、新しいシークレットを作成
     if do_rotate:
         key_id = get_key_id_from_alias(kms_client, alias_name)
         origin_key_id = get_origin_key_id(key_id, kms_client)
+        conn = barbican_api.get_connection(project_name)
+
         if origin_key_id is None:
-            conn = barbican_api.get_connection()
             secret = barbican_api.create_secret(conn, key_name)
         else:
-            secret = barbican_api.create_new_version_secret(origin_key_id)
+            secret = barbican_api.create_new_version_secret(conn, origin_key_id)
 
     secret_id = secret.secret_id
     plaintext_key = secret.payload.encode()
@@ -292,8 +326,8 @@ def byok_aws(key_name, alias_name, do_rotate, secret=None):
 
     add_description_to_key(kms_client, key_id, secret_id)
 
-def schedule_key_deletion(key_id, waiting_period_days=7):
-    kms_client = boto3.client('kms')
+def schedule_key_deletion(request, key_id, waiting_period_days=7):
+    kms_client = get_kms_client(request.user.project_name, request)
 
     response = kms_client.schedule_key_deletion(
         KeyId=key_id,
@@ -302,13 +336,14 @@ def schedule_key_deletion(key_id, waiting_period_days=7):
     return response
 
 class BYOKAWSAction(actions.Action):
-    def __init__(self, key_name, alias_name, do_rotate=False):
+    def __init__(self, project_name, key_name, alias_name, do_rotate=False):
+        self.project_name = project_name
         self.key_name = key_name
         self.alias_name = alias_name
         self.do_rotate = do_rotate
 
     def run(self, context):
-        byok_aws(self.key_name, self.alias_name, self.do_rotate)
+        byok_aws(self.project_name, self.key_name, self.alias_name, self.do_rotate)
 
 def get_workflow(conn, name):
     workflows = conn.workflow.workflows()
@@ -318,12 +353,13 @@ def get_workflow(conn, name):
     
     return None
 
-def create_workflow(conn):
-    workflow_definition = """
+def create_workflow(conn, workflow_name):
+    workflow_definition = f"""
 version: '2.0'
-rotate_workflow:
+{workflow_name}:
   type: direct
   input:
+    - project_name
     - key_name
     - alias_name
     - do_rotate
@@ -331,6 +367,7 @@ rotate_workflow:
     execute_byok_aws:
       action: byok.aws
       input:
+        project_name: <% $.project_name %>
         key_name: <% $.key_name %>
         alias_name: <% $.alias_name %>
         do_rotate: <% $.do_rotate %>
@@ -345,11 +382,12 @@ rotate_workflow:
 
     return workflow
 
-def create_cron_trigger(conn, workflow_name, key_name, alias_name, pattern):
+def create_cron_trigger(conn, workflow_name, project_name, key_name, alias_name, pattern):
     trigger = conn.workflow.create_cron_trigger(
-        name=f'key_rotation_{key_name}',
+        name=f'key_rotation_aws_{project_name}_{key_name}',
         workflow_name=workflow_name,
         workflow_input={
+            "project_name": project_name,
             "key_name": key_name,
             "alias_name": alias_name,
             "do_rotate": True
@@ -359,12 +397,25 @@ def create_cron_trigger(conn, workflow_name, key_name, alias_name, pattern):
     )
     return trigger
 
-def auto_rotate_key(key_name, alias_name, pattern):
-    conn = barbican_api.get_connection()
-    workflow_name = 'rotate_workflow'
+def auto_rotate_key(request, project_name, key_name, alias_name, pattern):
+    conn = barbican_api.create_connection(request)
+    workflow_name = f'rotate_workflow_aws_{project_name}'
     workflow_created = get_workflow(conn, workflow_name)
     if workflow_created is None:
-        create_workflow(conn)
-    trigger = create_cron_trigger(conn, workflow_name, key_name, alias_name, pattern)
+        create_workflow(conn, workflow_name)
+
+    trigger = create_cron_trigger(conn, workflow_name, project_name, key_name, alias_name, pattern)
 
     return trigger
+
+def set_access_key(request, key_id, aws_secret):
+    conn = barbican_api.create_connection(request)
+    secret_data = f'{key_id},{aws_secret}'
+
+    conn.key_manager.create_secret(
+        name='__AWS_Credentials',
+        payload=secret_data,
+        payload_content_type='text/plain',
+        algorithm='AES',
+        bit_length=256,
+    )

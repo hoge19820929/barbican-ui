@@ -145,14 +145,14 @@ def get_rotation_crypto_key(project_id, location_id, key_ring_id, crypto_key_id)
     crypto_key_path = client.crypto_key_path(project_id, location_id, key_ring_id, crypto_key_id)
     return client.get_crypto_key(name=crypto_key_path)
 
-def byok_google(key_ring_id, key_id, do_rotate, secret=None):
+def byok_google(origin_project_name, key_ring_id, key_id, do_rotate, secret=None):
     project_id = get_project_id()
     # TODO: FIXME
     location_id = 'us-central1'
     import_job_id = f'byok_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
     create_import_job(project_id, location_id, key_ring_id, import_job_id)
 
-    conn = barbican_api.get_connection()
+    conn = barbican_api.get_connection(origin_project_name)
 
     if do_rotate:
         # ローテーション対象のキーを取得
@@ -161,7 +161,7 @@ def byok_google(key_ring_id, key_id, do_rotate, secret=None):
         if origin_key_id is None:
             secret = barbican_api.create_secret(conn, key_id)
         else:
-            secret = barbican_api.create_new_version_secret(origin_key_id)
+            secret = barbican_api.create_new_version_secret(conn, origin_key_id)
     else:
         # Google KMSにキーバージョンが空のキーを作成
         crypto_key = create_key_for_import(project_id, location_id, key_ring_id, key_id)
@@ -254,11 +254,11 @@ def get_key_data(**search_opts):
 
     return key_data_list
 
-def rotate_key(key_path):
+def rotate_key(origin_project_name, key_path):
     # KEY Path: projects/{project_id}/locations/{location_id}/keyRings/{key_ring_id}/cryptoKeys/{key_id}
     key_ring_id = key_path.split('/keyRings/')[1].split('/')[0]
     crypto_key_id = key_path.split('/cryptoKeys/')[1]
-    byok_google(key_ring_id, crypto_key_id, True)
+    byok_google(origin_project_name, key_ring_id, crypto_key_id, True)
 
 def delete_key_versions(key_path):
     client = kms.KeyManagementServiceClient()
@@ -274,11 +274,12 @@ def delete_key_versions(key_path):
         client.destroy_crypto_key_version(name=version.name)
 
 class BYOKGoogleAction(actions.Action):
-    def __init__(self, key_id):
+    def __init__(self, project_name, key_id):
+        self.project_name = project_name
         self.key_id = key_id
     
     def run(self, context):
-        rotate_key(self.key_id)
+        rotate_key(self.project_name, self.key_id)
 
 def get_workflow(conn, name):
     workflows = conn.workflow.workflows()
@@ -288,17 +289,19 @@ def get_workflow(conn, name):
     
     return None
 
-def create_workflow(conn):
-    workflow_definition = """
+def create_workflow(conn, workflow_name):
+    workflow_definition = f"""
 version: '2.0'
-rotate_google_workflow:
+{workflow_name}:
   type: direct
   input:
+    - project_name
     - key_id
   tasks:
     execute_byok_google:
       action: byok.google
       input:
+        project_name: <% $.project_name %>
         key_id: <% $.key_id %>
       on-success: notify_execution
     notify_execution:
@@ -311,11 +314,12 @@ rotate_google_workflow:
 
     return workflow
 
-def create_cron_trigger(conn, workflow_name, key_id, pattern):
+def create_cron_trigger(conn, workflow_name, origin_project_name, key_id, pattern):
     trigger = conn.workflow.create_cron_trigger(
-        name=f'key_rotation_{key_id}',
+        name=f'key_rotation_{origin_project_name}_{key_id}',
         workflow_name=workflow_name,
         workflow_input={
+            "project_name": origin_project_name,
             "key_id": key_id
         },
         pattern=pattern,
@@ -323,12 +327,12 @@ def create_cron_trigger(conn, workflow_name, key_id, pattern):
     )
     return trigger
 
-def auto_rotate_key(key_id, pattern):
-    conn = barbican_api.get_connection()
-    workflow_name = 'rotate_google_workflow'
+def auto_rotate_key(origin_project_name, key_id, pattern):
+    conn = barbican_api.get_connection(origin_project_name)
+    workflow_name = f'rotate_workflow_google_{origin_project_name}'
     workflow_created = get_workflow(conn, workflow_name)
     if workflow_created is None:
-        create_workflow(conn)
-    trigger = create_cron_trigger(conn, workflow_name, key_id, pattern)
+        create_workflow(conn, workflow_name)
+    trigger = create_cron_trigger(conn, workflow_name, origin_project_name, key_id, pattern)
 
     return trigger

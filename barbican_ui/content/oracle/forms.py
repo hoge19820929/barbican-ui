@@ -46,8 +46,8 @@ class AutoRotateSecretForm(forms.SelfHandlingForm):
 
     def handle(self, request, data):
         try:
-            api.auto_rotate_key(data['vault_id'], data['key_id'], data['pattern'])
-            messages.success(request, _("Successfully set auto rotation: %s") % data['key_id'])
+            api.auto_rotate_key(request.user.project_name, data['vault_id'], data['key_id'], data['key_name'], data['pattern'])
+            messages.success(request, _("Successfully set auto rotation: %s") % data['key_name'])
             return True
         except Exception:
             exceptions.handle(request)

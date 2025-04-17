@@ -88,10 +88,21 @@ def get_key_data(**search_opts):
 
     return key_data_list
 
-def get_kms_management_client(vault_id):
-    config = oci.config.from_file()
+def get_vault(config, vault_id):
     kms_vault_client = KmsVaultClient(config)
     vault = kms_vault_client.get_vault(vault_id).data
+
+    return vault
+
+def get_vault_name(vault_id):
+    config = oci.config.from_file()
+    vault = get_vault(config, vault_id)
+
+    return vault.display_name
+
+def get_kms_management_client(vault_id):
+    config = oci.config.from_file()
+    vault = get_vault(config, vault_id)
 
     return KmsManagementClient(config, vault.management_endpoint)
 
@@ -207,15 +218,16 @@ def update_key_tags(manage_client, key_id, origin_key_id):
     res = manage_client.update_key(key_id, update_key_details)
     return res
 
-def rotate_key(vault_id, key_id):
+def rotate_key(project_name, vault_id, key_id):
     manage_client = get_kms_management_client(vault_id)
     key = manage_client.get_key(key_id).data
     origin_key_id = key.freeform_tags.get('OriginKeyID', None)
+    conn = barbican_api.get_connection(project_name)
+
     if origin_key_id is None:
-        conn = barbican_api.get_connection()
         origin_key = barbican_api.create_secret(conn, key.display_name, None)
     else:
-        origin_key = barbican_api.create_new_version_secret(origin_key_id)
+        origin_key = barbican_api.create_new_version_secret(conn, origin_key_id)
 
     key_material = create_key_material(manage_client, origin_key.payload.encode())
     import_key_version(manage_client, key_id, key_material, origin_key.secret_id)
@@ -234,12 +246,13 @@ def delete_key(vault_id, key_id):
     manage_client.schedule_key_deletion(key_id, delete_details)
 
 class BYOKOracleAction(actions.Action):
-    def __init__(self, vault_id, key_id):
+    def __init__(self, project_name, vault_id, key_id):
+        self.project_name = project_name
         self.vault_id = vault_id
         self.key_id = key_id
     
     def run(self, context):
-        rotate_key(self.vault_id, self.key_id)
+        rotate_key(self.project_name, self.vault_id, self.key_id)
 
 def get_workflow(conn, name):
     workflows = conn.workflow.workflows()
@@ -249,18 +262,20 @@ def get_workflow(conn, name):
     
     return None
 
-def create_workflow(conn):
-    workflow_definition = """
+def create_workflow(conn, workflow_name):
+    workflow_definition = f"""
 version: '2.0'
-rotate_oracle_workflow:
+{workflow_name}:
   type: direct
   input:
+    - project_name
     - vault_id
     - key_id
   tasks:
     execute_byok_oracle:
       action: byok.oracle
       input:
+        project_name: <% $.project_name %>
         vault_id: <% $.vault_id %>
         key_id: <% $.key_id %>
       on-success: notify_execution
@@ -274,11 +289,13 @@ rotate_oracle_workflow:
 
     return workflow
 
-def create_cron_trigger(conn, workflow_name, vault_id, key_id, pattern):
+def create_cron_trigger(conn, workflow_name, project_name, vault_id, key_id, key_name, pattern):
+    vault_name = get_vault_name(vault_id)
     trigger = conn.workflow.create_cron_trigger(
-        name=f'key_rotation_{key_id}',
+        name=f'key_rotation_oracle_{project_name}_{vault_name}_{key_name}',
         workflow_name=workflow_name,
         workflow_input={
+            "project_name": project_name,
             "vault_id": vault_id,
             "key_id": key_id
         },
@@ -287,12 +304,12 @@ def create_cron_trigger(conn, workflow_name, vault_id, key_id, pattern):
     )
     return trigger
 
-def auto_rotate_key(vault_id, key_id, pattern):
-    conn = barbican_api.get_connection()
-    workflow_name = 'rotate_oracle_workflow'
+def auto_rotate_key(project_name, vault_id, key_id, key_name, pattern):
+    conn = barbican_api.get_connection(project_name)
+    workflow_name = f'rotate_workflow_oracle_{project_name}'
     workflow_created = get_workflow(conn, workflow_name)
     if workflow_created is None:
-        create_workflow(conn)
-    trigger = create_cron_trigger(conn, workflow_name, vault_id, key_id, pattern)
+        create_workflow(conn, workflow_name)
+    trigger = create_cron_trigger(conn, workflow_name, project_name, vault_id, key_id, key_name, pattern)
 
     return trigger
