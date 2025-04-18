@@ -77,9 +77,14 @@ class SetCredentialForm(forms.SelfHandlingForm):
         label=_('AWS Secret Access Key'),
     )
 
+    region = forms.CharField(
+        max_length=255,
+        label=_('Region'),
+    )
+
     def handle(self, request, data):
         try:
-            api.set_access_key(request, data['key_id'], data['aws_secret'])
+            api.set_access_key(request, data['key_id'], data['aws_secret'], data['region'])
             messages.success(request, _("Successfully set access key: %s") % data['key_id'])
             return True
         except Exception:

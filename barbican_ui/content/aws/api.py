@@ -31,10 +31,12 @@ def get_kms_client(project_name, request=None):
     
     aws_access_key_id = secret.payload.split(',')[0]
     aws_secret_access_key = secret.payload.split(',')[1]
+    region_name = secret.payload.split(',')[2]
 
     session = boto3.Session(
         aws_access_key_id=aws_access_key_id,
         aws_secret_access_key=aws_secret_access_key,
+        region_name=region_name,
     )
 
     return session.client('kms')
@@ -408,9 +410,9 @@ def auto_rotate_key(request, project_name, key_name, alias_name, pattern):
 
     return trigger
 
-def set_access_key(request, key_id, aws_secret):
+def set_access_key(request, key_id, aws_secret, region):
     conn = barbican_api.create_connection(request)
-    secret_data = f'{key_id},{aws_secret}'
+    secret_data = f'{key_id},{aws_secret},{region}'
 
     conn.key_manager.create_secret(
         name='__AWS_Credentials',
