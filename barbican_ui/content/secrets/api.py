@@ -63,6 +63,13 @@ def get_secret_metadata(conn, secret_id):
     
     return None
 
+def get_key_version(conn, secret_id):
+    metadata = get_secret_metadata(conn, secret_id)
+    if metadata:
+        return metadata.get('key_version', '-')
+    else:
+        return '-'
+
 def set_secret_metadata(conn, secret_id, key, value):
     url = f'http://localhost/key-manager/v1/secrets/{secret_id}/metadata'
     body = {

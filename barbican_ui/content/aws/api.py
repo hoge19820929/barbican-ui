@@ -58,7 +58,8 @@ class KeyData(resource.Resource):
         "key_type",
         "key_spec",
         "key_usage",
-        "description",
+        "source_key",
+        "key_version",
         "aws_account",
         "region",
         "origin",
@@ -72,7 +73,8 @@ class KeyData(resource.Resource):
     key_type = resource.Body('key_type')
     key_spec = resource.Body('key_spec')
     key_usage = resource.Body('key_usage')
-    description = resource.Body('description')
+    source_key = resource.Body('source_key')
+    key_version = resource.Body('key_version')
     aws_account = resource.Body('aws_account')
     region = resource.Body('region')
     origin = resource.Body('origin')
@@ -155,6 +157,8 @@ def fetch_key_data(key_id, kms_client):
         return None
     
     key_type = determine_key_type(metadata['KeySpec'])
+    source_key = tags.get('OriginKeyName', '-')
+    key_version = tags.get('OriginKeyVersion', '-')
     expiration_date = metadata.get('DeletionDate', '-')
 
     key_data = KeyData(
@@ -165,7 +169,8 @@ def fetch_key_data(key_id, kms_client):
         key_type=key_type,
         key_spec=metadata['KeySpec'],
         key_usage=metadata['KeyUsage'],
-        description=metadata.get('Description', '-'),
+        source_key=source_key,
+        key_version=key_version,
         aws_account=metadata['AWSAccountId'],
         region=metadata['Region'],
         origin=metadata.get('Origin','-'),
@@ -244,7 +249,7 @@ def create_alias(kms_client, key_id, alias_name):
         TargetKeyId=key_id
     )
 
-def tag_kms_key_with_secret_id(kms_client, key_id, secret_id):
+def set_origin_tags(kms_client, key_id, secret_id, secret_name, secret_version):
     response = kms_client.tag_resource(
         KeyId=key_id,
         Tags=[
@@ -252,22 +257,15 @@ def tag_kms_key_with_secret_id(kms_client, key_id, secret_id):
                 'TagKey': 'OriginKeyID',
                 'TagValue': secret_id
             },
+            {
+                'TagKey': 'OriginKeyName',
+                'TagValue': secret_name
+            },
+            {
+                'TagKey': 'OriginKeyVersion',
+                'TagValue': secret_version
+            },
         ]
-    )
-    return response
-
-def add_description_to_key(kms_client, key_id, secret_id):
-    metadata = kms_client.describe_key(KeyId=key_id)['KeyMetadata']
-
-    current_description = metadata.get('Description', '')
-    if current_description:
-        new_description = f"{current_description} | secret_id: {secret_id}をインポート"
-    else:
-        new_description = f"secret_id: {secret_id}をインポート"
-    
-    response = kms_client.update_key_description(
-        KeyId=key_id,
-        Description=new_description
     )
     return response
 
@@ -290,14 +288,15 @@ def get_key_id_from_alias(kms_client, alias_name):
 def byok_aws(project_name, key_name, alias_name, do_rotate, request=None, secret=None):
     if request:
         kms_client = get_kms_client(project_name, request)
+        conn = barbican_api.create_connection(request)
     else:
         kms_client = get_kms_client(project_name)
+        conn = barbican_api.get_connection(project_name)
 
     # キーのローテーションを行う場合、新しいシークレットを作成
     if do_rotate:
         key_id = get_key_id_from_alias(kms_client, alias_name)
         origin_key_id = get_origin_key_id(key_id, kms_client)
-        conn = barbican_api.get_connection(project_name)
 
         if origin_key_id is None:
             secret = barbican_api.create_secret(conn, key_name)
@@ -324,9 +323,9 @@ def byok_aws(project_name, key_name, alias_name, do_rotate, request=None, secret
     # ステップ 4: キーマテリアルのインポート
     import_encrypted_key_material(kms_client, key_id, encrypt_key, import_token)
 
-    tag_kms_key_with_secret_id(kms_client, key_id, secret_id)
-
-    add_description_to_key(kms_client, key_id, secret_id)
+    # Originのキー情報をタグに設定
+    secret_version = barbican_api.get_key_version(conn, secret_id)
+    set_origin_tags(kms_client, key_id, secret_id, secret.name, secret_version)
 
 def schedule_key_deletion(request, key_id, waiting_period_days=7):
     kms_client = get_kms_client(request.user.project_name, request)

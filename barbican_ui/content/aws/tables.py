@@ -16,7 +16,9 @@ class SecretsFilterAction(tables.FilterAction):
 #                      ('key_type', _('Key Type ='), True),
 #                      ('key_spec', _('Key Spec ='), True),
                       ('key_usage', _('Key Usage ='), True),
-                      ('description', _('Description ='), True),
+                      ('source_key', _('Source Key ='), True),
+                      ('key_version', _('Key Version ='), True),
+#                      ('description', _('Description ='), True),
                       ('aws_account', _('AWS Account ='), True),
                       ('region', _('Region ='), True),
 #                      ('origin', _('Origin ='), True),
@@ -109,7 +111,9 @@ class SecretsTable(tables.DataTable):
 #    key_type = tables.Column('key_type', verbose_name=_("Key Type"))
 #    key_spec = tables.Column('key_spec', verbose_name=_("Key Spec"))
     key_usage = tables.Column('key_usage', verbose_name=_("Key Usage"))
-    description = tables.Column('description', verbose_name=_("Description"))
+    source_key = tables.Column('source_key', verbose_name=_("Source Key"))
+    key_version = tables.Column('key_version', verbose_name=_("Key Version"))
+#    description = tables.Column('description', verbose_name=_("Description"))
     aws_account = tables.Column('aws_account', verbose_name=_("AWS Account"))
     region = tables.Column('region', verbose_name=_("Region"))
 #    origin = tables.Column('origin', verbose_name=_("Origin"))
