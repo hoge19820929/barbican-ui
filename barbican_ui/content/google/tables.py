@@ -9,7 +9,7 @@ from horizon import tables
 from . import api
 
 class SecretsFilterAction(tables.FilterAction):
-    filter_type = 'server'
+    filter_type = 'query'
     filter_choices = (('name', _('Key Name ='), True, _('Case-sensitive')),
                       ('key_id', _('Key ID ='), True),
                       ('key_version_count', _('Key Version Count ='), True),

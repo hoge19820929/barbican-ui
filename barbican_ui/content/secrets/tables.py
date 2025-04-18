@@ -10,7 +10,7 @@ from . import api
 from barbican_ui.content.aws import api as aws_api
 
 class SecretsFilterAction(tables.FilterAction):
-    filter_type = 'server'
+    filter_type = 'query'
     filter_choices = (('name', _('Secret Name ='), True, _('Case-sensitive')),
                       ('key_id', _('Key ID ='), True),
                       ('key_version', _('Key Version ='), True),
