@@ -180,6 +180,7 @@ def fetch_key_data(key_id, kms_client):
     return key_data
 
 def get_key_data_parallel(kms_client, keys, **filter):
+    key_data_list = []
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = {executor.submit(fetch_key_data, key['KeyId'], kms_client): key for key in keys}
 
@@ -187,13 +188,15 @@ def get_key_data_parallel(kms_client, keys, **filter):
             result = future.result()
             if result:
                 if not filter:
-                    yield result
+                    key_data_list.append(result)
                 else:
                     for key, value in filter.items():
                         if result[key] == value:
-                            yield result
+                            key_data_list.append(result)
                         else:
                             continue
+    
+    return key_data_list
 
 def get_secrets(request, **filter):
     kms_client = get_kms_client(request.user.project_name, request)
