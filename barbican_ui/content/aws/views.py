@@ -26,6 +26,21 @@ class IndexView(tables.PagedTableMixin, tables.DataTableView):
             exceptions.handle(self.request, _("Unable to retrieve secrets."))
             return []
 
+class IndexAllView(tables.PagedTableMixin, tables.DataTableView):
+    table_class = project_tables.SecretsTable
+    page_title = _("AWS Secrets")
+    template_name = 'project/aws/index.html'
+
+    def get_data(self):
+        try:
+            search_opts = self.get_filters()
+            secrets = project_api.get_secrets(self.request, is_all=True, **search_opts)
+
+            return secrets
+        except Exception as e:
+            exceptions.handle(self.request, _("Unable to retrieve secrets."))
+            return []
+
 class AutoRotateSecretView(forms.ModalFormView):
     template_name = 'project/aws/auto_rotate.html'
     form_id = "auto_rotate"

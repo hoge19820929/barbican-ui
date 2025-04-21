@@ -143,7 +143,7 @@ def determine_key_type(key_spec):
     else:
         return 'Unknown'
 
-def fetch_key_data(key_id, kms_client):
+def fetch_key_data(key_id, kms_client, is_all):
     metadata = describe_key_metadata(key_id, kms_client)
     aliases = list_key_aliases(key_id, kms_client)
 
@@ -154,6 +154,10 @@ def fetch_key_data(key_id, kms_client):
     # BYOKしたキーのみ表示
     tags = list_key_tags(key_id, kms_client)
     if 'OriginKeyID' not in tags:
+        return None
+    
+    # is_all = Falseの時、鍵ステータスがEnabledでないまたはaliasが未設定の場合は表示しない
+    if not is_all and (metadata['KeyState'] != 'Enabled' or len(aliases) == 0):
         return None
     
     key_type = determine_key_type(metadata['KeySpec'])
@@ -179,10 +183,10 @@ def fetch_key_data(key_id, kms_client):
     )
     return key_data
 
-def get_key_data_parallel(kms_client, keys, **filter):
+def get_key_data_parallel(kms_client, keys, is_all, **filter):
     key_data_list = []
     with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {executor.submit(fetch_key_data, key['KeyId'], kms_client): key for key in keys}
+        futures = {executor.submit(fetch_key_data, key['KeyId'], kms_client, is_all): key for key in keys}
 
         for future in as_completed(futures):
             result = future.result()
@@ -198,10 +202,10 @@ def get_key_data_parallel(kms_client, keys, **filter):
     
     return key_data_list
 
-def get_secrets(request, **filter):
+def get_secrets(request, is_all=False, **filter):
     kms_client = get_kms_client(request.user.project_name, request)
     keys = list_kms_keys(kms_client)
-    key_data_list = get_key_data_parallel(kms_client, keys, **filter)
+    key_data_list = get_key_data_parallel(kms_client, keys, is_all, **filter)
 
     return key_data_list
 

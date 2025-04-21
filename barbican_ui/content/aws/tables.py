@@ -32,6 +32,11 @@ class CreateSecret(tables.LinkAction):
     classes = ("ajax-modal",)
     icon = "plus"
 
+class IndexAll(tables.LinkAction):
+    name = "index_all"
+    verbose_name = _("View All Sent Keys")
+    url = "horizon:project:aws:index_all"
+
 class RotateSecret(tables.BatchAction):
     @staticmethod
     def action_present(count):
@@ -123,5 +128,5 @@ class SecretsTable(tables.DataTable):
     class Meta(object):
         name = "aws"
         verbose_name = _("AWS Secrets")
-        table_actions = (SecretsFilterAction, DeleteSecret, SetAWSCredentials,)
+        table_actions = (SecretsFilterAction, IndexAll, SetAWSCredentials, DeleteSecret,)
         row_actions = (AutoRotateSecret, RotateSecret,)
