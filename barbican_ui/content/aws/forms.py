@@ -35,6 +35,13 @@ class AutoRotateSecretForm(forms.SelfHandlingForm):
         super().__init__(*args, **kwargs)
         self.fields = collections.OrderedDict([
             (
+                'aws_conn',
+                forms.CharField(
+                    widget=forms.HiddenInput(),
+                    initial=self.request.GET.get('aws_conn', ''),
+                )
+            ),
+            (
                 'name',
                 forms.RegexField(
                     max_length=255,
@@ -59,7 +66,7 @@ class AutoRotateSecretForm(forms.SelfHandlingForm):
 
     def handle(self, request, data):
         try:
-            api.auto_rotate_key(request, request.user.project_name, data['name'], 'alias/' + data['name'], data['pattern'])
+            api.auto_rotate_key(request, data['aws_conn'], request.user.project_name, data['name'], 'alias/' + data['name'], data['pattern'])
             messages.success(request, _("Successfully set auto rotation: %s") % data['name'])
             return True
         except Exception:
@@ -67,6 +74,11 @@ class AutoRotateSecretForm(forms.SelfHandlingForm):
             return False
 
 class SetCredentialForm(forms.SelfHandlingForm):
+    aws_conn = forms.CharField(
+        max_length=255,
+        label=_('AWS Connection Name'),
+    )
+
     key_id = forms.CharField(
         max_length=255,
         label=_('AWS Access Key ID'),
@@ -84,8 +96,8 @@ class SetCredentialForm(forms.SelfHandlingForm):
 
     def handle(self, request, data):
         try:
-            api.set_access_key(request, data['key_id'], data['aws_secret'], data['region'])
-            messages.success(request, _("Successfully set access key: %s") % data['key_id'])
+            api.set_access_key(request, data['aws_conn'], data['key_id'], data['aws_secret'], data['region'])
+            messages.success(request, _("Successfully set AWS connection: %s") % data['aws_conn'])
             return True
         except Exception:
             exceptions.handle(request)

@@ -25,34 +25,18 @@ class CreateSecret(tables.LinkAction):
     classes = ("ajax-modal",)
     icon = "plus"
 
-class SendAWSKey(tables.BatchAction):
-    @staticmethod
-    def action_present(count):
-        return ngettext_lazy(
-            u"Send Key(AWS)",
-            u"Send Key(AWS)",
-            count
-        )
-
-    @staticmethod
-    def action_past(count):
-        return ngettext_lazy(
-            u"Send Key(AWS)",
-            u"Send Key(AWS)",
-            count
-        )
-    
-    name = "send"
+class SendAWSKey(tables.LinkAction):
+    name = "send-aws"
     verbose_name = _("Send Key(AWS)")
-    icon = "cloud-upload"
+    url = "horizon:project:secrets:send_key_aws"
+    classes = ("ajax-modal",)
+    icon = "plus"
 
-    def action(self, request, obj_id):
-        try:
-            secret = api.get_secret(request, obj_id)
-            alias = secret.name
-            aws_api.byok_aws(request.user.project_name, alias, 'alias/' + alias, False, request, secret)
-        except Exception:
-            exceptions.handle(request, _("Unable to send key."))
+    def get_link_url(self, datum):
+        base_url = reverse(self.url)
+        params = urlencode({"name": datum.name, "key_id": datum.key_id})
+
+        return "?".join([base_url, params])
 
 class SendOracleKey(tables.LinkAction):
     name = "send-oracle"

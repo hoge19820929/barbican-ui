@@ -6,6 +6,7 @@ from horizon import forms
 from horizon import messages
 
 from . import api
+from barbican_ui.content.aws import api as aws_api
 from barbican_ui.content.oracle import api as oracle_api
 from barbican_ui.content.azure import api as azure_api
 from barbican_ui.content.google import api as google_api
@@ -28,6 +29,58 @@ class CreateSecretForm(forms.SelfHandlingForm):
             res = api.create_secret(conn, data['name'])
             messages.success(request, _("Successfully create secret: %s") % data['name'])
             return res
+        except Exception:
+            exceptions.handle(request)
+            return False
+
+class SendSecretAWSForm(forms.SelfHandlingForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields = collections.OrderedDict([
+            (
+                'aws_conn',
+                forms.ChoiceField(
+                    label=_("AWS Connection Name"),
+                    widget=forms.SelectWidget(),
+                    choices=self.get_connection_choices()
+                )
+            ),
+            (
+                'key_id',
+                forms.CharField(
+                    widget=forms.HiddenInput(),
+                    initial=self.request.GET.get('key_id', ''),
+                )
+            ),
+            (
+                'name',
+                forms.RegexField(
+                    max_length=255,
+                    label=_('Key Name'),
+                    initial=self.request.GET.get('name', ''),
+                    help_text=_('Name of the Oracle KMS key.'),
+                    regex=r"^[a-zA-Z][a-zA-Z0-9_.-]*$",
+                    error_messages={'invalid':
+                                    _('Name must start with a letter and may '
+                                    'only contain letters, numbers, underscores, '
+                                    'periods and hyphens.')})
+            )
+        ])
+    
+    def get_connection_choices(self):
+        conn = api.create_connection(self.request)
+        aws_conns = aws_api.connection_names(conn)
+        choices = [(name, name) for name in aws_conns]
+
+        return choices
+
+    def handle(self, request, data):
+        try:
+            conn = api.create_connection(request)
+            secret = conn.key_manager.get_secret(data['key_id'])
+            aws_api.byok_aws(conn, data['aws_conn'], data['name'], 'alias/' + data['name'], False, secret)
+            messages.success(request, _("Successfully send a key: %s") % data['name'])
+            return True
         except Exception:
             exceptions.handle(request)
             return False

@@ -7,6 +7,7 @@ from horizon import exceptions
 from horizon import tables
 
 from . import api
+from barbican_ui.content.secrets import api as barbican_api
 
 class SecretsFilterAction(tables.FilterAction):
     filter_type = 'query'
@@ -60,8 +61,11 @@ class RotateSecret(tables.BatchAction):
 
     def action(self, request, obj_id):
         try:
-            alias = api.get_key_alias(request, obj_id)
-            api.byok_aws(request.user.project_name, alias, 'alias/' + alias, True, request)
+            aws_conn = obj_id.split(',')[0]
+            key_id = obj_id.split(',')[1]
+            conn = barbican_api.create_connection(request)
+            alias = api.get_key_alias(conn, aws_conn, key_id)
+            api.byok_aws(conn, aws_conn, alias, 'alias/' + alias, True)
         except Exception:
             exceptions.handle(request, _("Unable to rotate secrets."))
 
@@ -74,7 +78,7 @@ class AutoRotateSecret(tables.LinkAction):
 
     def get_link_url(self, datum):
         base_url = reverse(self.url)
-        params = urlencode({"alias": datum.alias})
+        params = urlencode({"alias": datum.alias, "aws_conn": datum.aws_conn})
 
         return "?".join([base_url, params])
 
@@ -95,9 +99,11 @@ class DeleteSecret(tables.DeleteAction):
             count
         )
     
-    def delete(self, request, id):
+    def delete(self, request, obj_id):
         try:
-            api.schedule_key_deletion(request, id)
+            aws_conn = obj_id.split(',')[0]
+            key_id = obj_id.split(',')[1]
+            api.schedule_key_deletion(request, aws_conn, key_id)
         except Exception as e:
             exceptions.handle(request, _("Unable to delete secrets."))
 
@@ -124,6 +130,7 @@ class SecretsTable(tables.DataTable):
 #    origin = tables.Column('origin', verbose_name=_("Origin"))
     creation_date = tables.Column('creation_date', verbose_name=_("Creation Date"))
     expiration_date = tables.Column('expiration_date', verbose_name=_("Expiration Date"))
+    aws_conn = tables.Column('aws_conn', hidden=True)
 
     class Meta(object):
         name = "aws"
