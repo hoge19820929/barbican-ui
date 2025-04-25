@@ -227,8 +227,10 @@ def get_secrets(request, is_all=False, **filter):
     for (aws_conn, kms_client) in get_kms_clients(conn):
         keys = list_kms_keys(kms_client)
         key_data_list.extend(get_key_data_parallel(kms_client, aws_conn, keys, is_all, **filter))
+    
+    sorted_key_data = sorted(key_data_list, key=lambda key_data: key_data.alias)
 
-    return key_data_list
+    return sorted_key_data
 
 def kms_create_key(kms_client):
     response = kms_client.create_key(

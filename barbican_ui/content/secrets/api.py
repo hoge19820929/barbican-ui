@@ -108,7 +108,9 @@ def get_key_data(request, **kwargs):
         )
         key_data_list.append(key_data)
     
-    return key_data_list
+    sorted_key_data = sorted(key_data_list, key=lambda kd: (kd.name, kd.key_version))
+    
+    return sorted_key_data
 
 def get_secret(request, secret_id):
     conn = create_connection(request)
