@@ -22,21 +22,21 @@ class RotateSecret(tables.BatchAction):
     @staticmethod
     def action_present(count):
         return ngettext_lazy(
-            u"Rotate Key(Google)",
-            u"Rotate Key(Google)",
+            u"Rotate Key",
+            u"Rotate Key",
             count
         )
 
     @staticmethod
     def action_past(count):
         return ngettext_lazy(
-            u"Rotate Key(Google)",
-            u"Rotate Key(Google)",
+            u"Rotate Key",
+            u"Rotate Key",
             count
         )
     
     name = "rotate"
-    verbose_name = _("Rotate Key(Google)")
+    verbose_name = _("Rotate Key")
     icon = "cloud-upload"
 
     def action(self, request, key_id):

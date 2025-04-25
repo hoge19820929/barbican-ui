@@ -16,6 +16,9 @@ function install_barbican_ui {
 
 function configure_barbican_ui {
     cp -a ${BARBICAN_UI_DIR}/barbican_ui/enabled/* ${DEST}/horizon/openstack_dashboard/local/enabled/
+    if [ -d ${BARBICAN_UI_DIR}/barbican_ui/locale ]; then
+        (cd ${BARBICAN_UI_DIR}/barbican_ui; DJANGO_SETTINGS_MODULE=openstack_dashboard.settings $PYTHON ../manage.py compilemessages)
+    fi
 }
 
 # check for service enabled

@@ -86,16 +86,16 @@ class DeleteSecret(tables.DeleteAction):
     @staticmethod
     def action_present(count):
         return ngettext_lazy(
-            u"Delete Secret",
-            u"Delete Secrets",
+            u"Delete Key",
+            u"Delete Keys",
             count
         )
     
     @staticmethod
     def action_past(count):
         return ngettext_lazy(
-            u"Deleted Secret",
-            u"Deleted Secrets",
+            u"Deleted Key",
+            u"Deleted Keys",
             count
         )
     
