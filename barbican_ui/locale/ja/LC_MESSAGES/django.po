@@ -1,3 +1,6 @@
+msgid "KMS"
+msgstr "キーマネジメント"
+
 msgid "Create Secret"
 msgstr "シークレットの作成"
 
