@@ -107,6 +107,9 @@ msgstr "AWSアカウント"
 msgid "Auto Rotate Secret"
 msgstr "キーの自動ローテーション設定"
 
+msgid "Auto Rotate Key"
+msgstr "キーの自動ローテーション設定"
+
 msgid "Rotate Secret"
 msgid_plural "Rotate Secrets"
 msgstr[0] "キーのローテーション実行"

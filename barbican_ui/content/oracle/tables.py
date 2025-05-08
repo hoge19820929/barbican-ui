@@ -23,7 +23,7 @@ class RotateSecret(tables.BatchAction):
     def action_present(count):
         return ngettext_lazy(
             u"Rotate Key",
-            u"Rotate Key",
+            u"Rotate Keys",
             count
         )
 
@@ -31,7 +31,7 @@ class RotateSecret(tables.BatchAction):
     def action_past(count):
         return ngettext_lazy(
             u"Rotate Key",
-            u"Rotate Key",
+            u"Rotate Keys",
             count
         )
     
