@@ -33,6 +33,15 @@ class CreateSecretView(forms.ModalFormView):
     success_url = reverse_lazy('horizon:project:secrets:index')
     page_title = _("Create Secret")
 
+class AutoRotateSecretView(forms.ModalFormView):
+    template_name = 'project/secrets/auto_rotate.html'
+    form_id = "auto_rotate"
+    form_class = project_forms.AutoRotateSecretForm
+    submit_label = _("Submit")
+    submit_url = reverse_lazy("horizon:project:secrets:auto_rotate")
+    success_url = reverse_lazy('horizon:project:secrets:index')
+    page_title = _("Auto Rotate Secret")
+
 class SendSecretAWSView(forms.ModalFormView):
     template_name = 'project/secrets/send_key_aws.html'
     form_id = "send_key_aws"

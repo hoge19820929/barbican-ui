@@ -33,6 +33,44 @@ class CreateSecretForm(forms.SelfHandlingForm):
             exceptions.handle(request)
             return False
 
+class AutoRotateSecretForm(forms.SelfHandlingForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields = collections.OrderedDict([
+            (
+                'key_id',
+                forms.CharField(
+                    widget=forms.HiddenInput(),
+                    initial=self.request.GET.get('key_id', ''),
+                )
+            ),
+            (
+                'name',
+                forms.CharField(
+                    label=_('Secret Name'),
+                    widget=forms.TextInput(attrs={'readonly': 'readonly'}),
+                    initial=self.request.GET.get('name', ''),
+                )
+            ),
+            (
+                'pattern',
+                forms.CharField(
+                    max_length=255,
+                    label=_('Cron Pattern'),
+                    initial='* * * * *'
+                )
+            )
+        ])
+
+    def handle(self, request, data):
+        try:
+            api.auto_rotate_key(request.user.project_name, data['key_id'], data['pattern'])
+            messages.success(request, _("Successfully set auto rotation: %s") % data['name'])
+            return True
+        except Exception:
+            exceptions.handle(request)
+            return False
+
 class SendSecretAWSForm(forms.SelfHandlingForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

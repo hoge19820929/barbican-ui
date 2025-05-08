@@ -2,6 +2,7 @@ import json
 from openstack import connect, connection, resource
 from keystoneauth1.identity import v3
 from keystoneauth1 import session
+from mistral_lib import actions
 
 def id_uri_to_id(id_uri):
     return id_uri.rsplit('/', 1)[-1]
@@ -173,3 +174,72 @@ def delete_secret(request, secret_id_uri):
     secret_id = id_uri_to_id(secret_id_uri)
 
     conn.key_manager.delete_secret(secret_id)
+
+def rotate_key(project_name, key_id):
+    conn = get_connection(project_name)
+
+    return create_new_version_secret(conn, key_id)
+
+class KeyRotationAction(actions.Action):
+    def __init__(self, project_name, key_id):
+        self.project_name = project_name
+        self.key_id = key_id
+    
+    def run(self, context):
+        rotate_key(self.project_name, self.key_id)
+
+def get_workflow(conn, name):
+    workflows = conn.workflow.workflows()
+    for workflow in workflows:
+        if workflow.name == name:
+            return workflow
+    
+    return None
+
+def create_workflow(conn, workflow_name):
+    workflow_definition = f"""
+version: '2.0'
+{workflow_name}:
+  type: direct
+  input:
+    - project_name
+    - key_id
+  tasks:
+    execute_rotation:
+      action: key.rotation
+      input:
+        project_name: <% $.project_name %>
+        key_id: <% $.key_id %>
+      on-success: notify_execution
+    notify_execution:
+      action: std.echo output="key_rotation function executed successfully."
+    """
+    workflow = conn.workflow.create_workflow(
+        definition=workflow_definition,
+        scope='private',
+    )
+
+    return workflow
+
+def create_cron_trigger(conn, workflow_name, project_name, key_id, pattern):
+    trigger = conn.workflow.create_cron_trigger(
+        name=f'key_rotation_barbican_{project_name}_{key_id}',
+        workflow_name=workflow_name,
+        workflow_input={
+            "project_name": project_name,
+            "key_id": key_id
+        },
+        pattern=pattern,
+        remaining_executions=2  # 実行回数(開発中のみ設定)
+    )
+    return trigger
+
+def auto_rotate_key(project_name, key_id, pattern):
+    conn = get_connection(project_name)
+    workflow_name = f'rotate_workflow_barbican_{project_name}'
+    workflow_created = get_workflow(conn, workflow_name)
+    if workflow_created is None:
+        create_workflow(conn, workflow_name)
+    trigger = create_cron_trigger(conn, workflow_name, project_name, key_id, pattern)
+
+    return trigger

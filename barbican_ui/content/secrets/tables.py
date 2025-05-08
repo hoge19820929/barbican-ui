@@ -7,7 +7,6 @@ from horizon import exceptions
 from horizon import tables
 
 from . import api
-from barbican_ui.content.aws import api as aws_api
 
 class SecretsFilterAction(tables.FilterAction):
     filter_type = 'query'
@@ -24,6 +23,46 @@ class CreateSecret(tables.LinkAction):
     url = "horizon:project:secrets:create"
     classes = ("ajax-modal",)
     icon = "plus"
+
+class RotateSecret(tables.BatchAction):
+    @staticmethod
+    def action_present(count):
+        return ngettext_lazy(
+            "Rotate Key",
+            "Rotate Keys",
+            count
+        )
+
+    @staticmethod
+    def action_past(count):
+        return ngettext_lazy(
+            "Rotate Key",
+            "Rotate Keys",
+            count
+        )
+    
+    name = "rotate"
+    verbose_name = _("Rotate Key")
+    icon = "cloud-upload"
+
+    def action(self, request, key_id):
+        try:
+            api.rotate_key(request.user.project_name, key_id)
+        except Exception:
+            exceptions.handle(request, _("Unable to rotate key."))
+
+class AutoRotateSecret(tables.LinkAction):
+    name = "auto_rotate"
+    verbose_name = _("Auto Rotate Key")
+    url = "horizon:project:secrets:auto_rotate"
+    classes = ("ajax-modal",)
+    icon = "plus"
+
+    def get_link_url(self, datum):
+        base_url = reverse(self.url)
+        params = urlencode({"key_id": datum.key_id, "name": datum.name})
+
+        return "?".join([base_url, params])
 
 class SendAWSKey(tables.LinkAction):
     name = "send-aws"
@@ -113,4 +152,4 @@ class SecretsTable(tables.DataTable):
         name = "secrets"
         verbose_name = _("Barbican")
         table_actions = (SecretsFilterAction, CreateSecret, DeleteSecret,)
-        row_actions = (SendAWSKey, SendOracleKey, SendAzureKey, SendGoogleKey,)
+        row_actions = (RotateSecret, AutoRotateSecret, SendAWSKey, SendOracleKey, SendAzureKey, SendGoogleKey,)
