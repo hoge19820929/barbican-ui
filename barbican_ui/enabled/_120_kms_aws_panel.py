@@ -11,14 +11,14 @@
 #    under the License.
 
 # The slug of the panel to be added to HORIZON_CONFIG. Required.
-PANEL = 'azure'
+PANEL = 'aws'
 # The slug of the panel group the PANEL is associated with.
-PANEL_GROUP = 'kms'
+# PANEL_GROUP = 'kms'
 # The slug of the dashboard the PANEL associated with. Required.
-PANEL_DASHBOARD = 'project'
+PANEL_DASHBOARD = 'kms'
 
 # Python panel class of the PANEL to be added.
-ADD_PANEL = 'barbican_ui.content.azure.panel.Secrets'
+ADD_PANEL = 'barbican_ui.content.aws.panel.Secrets'
 
 ADD_SCSS_FILES = [
     'horizon/lib/bootstrap_scss/scss/_bootstrap.scss',
