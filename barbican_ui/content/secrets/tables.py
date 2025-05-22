@@ -150,6 +150,6 @@ class SecretsTable(tables.DataTable):
 
     class Meta(object):
         name = "secrets"
-        verbose_name = _("Barbican")
+        verbose_name = _("RKMS")
         table_actions = (SecretsFilterAction, CreateSecret, DeleteSecret,)
         row_actions = (RotateSecret, AutoRotateSecret, SendAWSKey, SendOracleKey, SendAzureKey, SendGoogleKey,)

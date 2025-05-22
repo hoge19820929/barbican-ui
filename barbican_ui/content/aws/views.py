@@ -13,7 +13,7 @@ from . import tables as project_tables
 
 class IndexView(tables.PagedTableMixin, tables.DataTableView):
     table_class = project_tables.SecretsTable
-    page_title = _("AWS KMS")
+    page_title = _("AWS")
     template_name = 'project/aws/index.html'
 
     def get_data(self):
