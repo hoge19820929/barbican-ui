@@ -38,33 +38,6 @@ msgid_plural "Delete Key Versions"
 msgstr[0] "キーバージョンの全削除"
 msgstr[1] "キーバージョンの全削除"
 
-msgid "Key ID"
-msgstr "キーID"
-
-msgid "Key Version"
-msgstr "キーバージョン"
-
-msgid "Key Version Count"
-msgstr "キーバージョン"
-
-msgid "Container ID"
-msgstr "キーコンテナID"
-
-msgid "Key State"
-msgstr "キーステータス"
-
-msgid "Key Status"
-msgstr "キーステータス"
-
-msgid "Key Enabled"
-msgstr "キーの有効性"
-
-msgid "Time Created"
-msgstr "作成日時"
-
-msgid "Creation Date"
-msgstr "作成日時"
-
 msgid "Send Key(AWS)"
 msgstr "キーの送付（AWS）"
 
@@ -92,18 +65,6 @@ msgstr "AWS接続名（接続先を識別するための任意の名前です。
 msgid "Set an access key."
 msgstr "接続先AWSの設定（アクセスキーの登録）"
 
-msgid "Alias"
-msgstr "エイリアス"
-
-msgid "Key Usage"
-msgstr "キーの使用法"
-
-msgid "Source Key"
-msgstr "ソースキー"
-
-msgid "AWS Account"
-msgstr "AWSアカウント"
-
 msgid "Auto Rotate Secret"
 msgstr "キーの自動ローテーション設定"
 
@@ -119,12 +80,3 @@ msgid "Rotate Key"
 msgid_plural "Rotate Keys"
 msgstr[0] "キーのローテーション実行"
 msgstr[1] "キーのローテーション実行"
-
-msgid "Vault Name"
-msgstr "ボールト名"
-
-msgid "Key Ring ID"
-msgstr "キーリングID"
-
-msgid "Origin Key ID"
-msgstr "オリジンキーID"
