@@ -1,4 +1,4 @@
 DASHBOARD = 'kms'
 ADD_INSTALLED_APPS = ['barbican_ui']
-DEFAULT = False
+DEFAULT = True
 ADD_EXCEPTIONS = {}

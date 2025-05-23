@@ -48,7 +48,7 @@ class RotateSecret(tables.BatchAction):
 class AutoRotateSecret(tables.LinkAction):
     name = "auto_rotate"
     verbose_name = _("Auto Rotate Key")
-    url = "horizon:project:azure:auto_rotate"
+    url = "horizon:kms:azure:auto_rotate"
     classes = ("ajax-modal",)
     icon = "plus"
 

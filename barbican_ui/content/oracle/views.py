@@ -12,7 +12,7 @@ from . import tables as project_tables
 class IndexView(tables.PagedTableMixin, tables.DataTableView):
     table_class = project_tables.SecretsTable
     page_title = _("OCI KMS")
-    template_name = 'project/oracle/index.html'
+    template_name = 'kms/oracle/index.html'
 
     def get_data(self):
         try:
@@ -25,10 +25,10 @@ class IndexView(tables.PagedTableMixin, tables.DataTableView):
             return []
 
 class AutoRotateSecretView(forms.ModalFormView):
-    template_name = 'project/oracle/auto_rotate.html'
+    template_name = 'kms/oracle/auto_rotate.html'
     form_id = "auto_rotate_oracle"
     form_class = project_forms.AutoRotateSecretForm
     submit_label = _("Submit")
-    submit_url = reverse_lazy("horizon:project:oracle:auto_rotate")
-    success_url = reverse_lazy('horizon:project:oracle:index')
+    submit_url = reverse_lazy("horizon:kms:oracle:auto_rotate")
+    success_url = reverse_lazy('horizon:kms:oracle:index')
     page_title = _("Auto Rotate Secret")

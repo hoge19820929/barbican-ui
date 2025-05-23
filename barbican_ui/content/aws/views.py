@@ -14,7 +14,7 @@ from . import tables as project_tables
 class IndexView(tables.PagedTableMixin, tables.DataTableView):
     table_class = project_tables.SecretsTable
     page_title = _("AWS")
-    template_name = 'project/aws/index.html'
+    template_name = 'kms/aws/index.html'
 
     def get_data(self):
         try:
@@ -29,7 +29,7 @@ class IndexView(tables.PagedTableMixin, tables.DataTableView):
 class IndexAllView(tables.PagedTableMixin, tables.DataTableView):
     table_class = project_tables.SecretsTable
     page_title = _("AWS Secrets")
-    template_name = 'project/aws/index.html'
+    template_name = 'kms/aws/index.html'
 
     def get_data(self):
         try:
@@ -42,30 +42,30 @@ class IndexAllView(tables.PagedTableMixin, tables.DataTableView):
             return []
 
 class AutoRotateSecretView(forms.ModalFormView):
-    template_name = 'project/aws/auto_rotate.html'
+    template_name = 'kms/aws/auto_rotate.html'
     form_id = "auto_rotate"
     form_class = project_forms.AutoRotateSecretForm
     submit_label = _("Submit")
-    submit_url = reverse_lazy("horizon:project:aws:auto_rotate")
-    success_url = reverse_lazy('horizon:project:aws:index')
+    submit_url = reverse_lazy("horizon:kms:aws:auto_rotate")
+    success_url = reverse_lazy('horizon:kms:aws:index')
     page_title = _("Auto Rotate Secret")
 
 class SetCredentialsView(forms.ModalFormView):
-    template_name = 'project/aws/set_cred.html'
+    template_name = 'kms/aws/set_cred.html'
     form_id = "set_cred"
     form_class = project_forms.SetCredentialForm
     submit_label = _("Submit")
-    submit_url = reverse_lazy("horizon:project:aws:set_cred")
-    success_url = reverse_lazy('horizon:project:aws:index')
+    submit_url = reverse_lazy("horizon:kms:aws:set_cred")
+    success_url = reverse_lazy('horizon:kms:aws:index')
     page_title = _("Set AWS Access Key")
 
 '''
 class CreateSecretView(forms.ModalFormView):
-    template_name = 'project/aws/create.html'
+    template_name = 'kms/aws/create.html'
     form_id = "create_secret"
     form_class = project_forms.CreateSecretForm
     submit_label = _("Create")
-    submit_url = reverse_lazy("horizon:project:aws:create")
-    success_url = reverse_lazy('horizon:project:aws:index')
+    submit_url = reverse_lazy("horizon:kms:aws:create")
+    success_url = reverse_lazy('horizon:kms:aws:index')
     page_title = _("Create Secret")
 '''

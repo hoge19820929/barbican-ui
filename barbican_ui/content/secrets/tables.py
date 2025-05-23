@@ -20,7 +20,7 @@ class SecretsFilterAction(tables.FilterAction):
 class CreateSecret(tables.LinkAction):
     name = "create"
     verbose_name = _("Create Secret")
-    url = "horizon:project:secrets:create"
+    url = "horizon:kms:secrets:create"
     classes = ("ajax-modal",)
     icon = "plus"
 
@@ -54,7 +54,7 @@ class RotateSecret(tables.BatchAction):
 class AutoRotateSecret(tables.LinkAction):
     name = "auto_rotate"
     verbose_name = _("Auto Rotate Key")
-    url = "horizon:project:secrets:auto_rotate"
+    url = "horizon:kms:secrets:auto_rotate"
     classes = ("ajax-modal",)
     icon = "plus"
 
@@ -67,7 +67,7 @@ class AutoRotateSecret(tables.LinkAction):
 class SendAWSKey(tables.LinkAction):
     name = "send-aws"
     verbose_name = _("Send Key(AWS)")
-    url = "horizon:project:secrets:send_key_aws"
+    url = "horizon:kms:secrets:send_key_aws"
     classes = ("ajax-modal",)
     icon = "plus"
 
@@ -80,7 +80,7 @@ class SendAWSKey(tables.LinkAction):
 class SendOracleKey(tables.LinkAction):
     name = "send-oracle"
     verbose_name = _("Send Key(Oracle)")
-    url = "horizon:project:secrets:send_key_oracle"
+    url = "horizon:kms:secrets:send_key_oracle"
     classes = ("ajax-modal",)
     icon = "plus"
 
@@ -93,7 +93,7 @@ class SendOracleKey(tables.LinkAction):
 class SendAzureKey(tables.LinkAction):
     name = "send-azure"
     verbose_name = _("Send Key(Azure)")
-    url = "horizon:project:secrets:send_key_azure"
+    url = "horizon:kms:secrets:send_key_azure"
     classes = ("ajax-modal",)
     icon = "plus"
 
@@ -106,7 +106,7 @@ class SendAzureKey(tables.LinkAction):
 class SendGoogleKey(tables.LinkAction):
     name = "send-google"
     verbose_name = _("Send Key(Google)")
-    url = "horizon:project:secrets:send_key_google"
+    url = "horizon:kms:secrets:send_key_google"
     classes = ("ajax-modal",)
     icon = "plus"
 

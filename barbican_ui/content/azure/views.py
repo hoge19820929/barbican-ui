@@ -12,7 +12,7 @@ from . import tables as project_tables
 class IndexView(tables.PagedTableMixin, tables.DataTableView):
     table_class = project_tables.SecretsTable
     page_title = _("Azure Key Vault")
-    template_name = 'project/azure/index.html'
+    template_name = 'kms/azure/index.html'
 
     def get_data(self):
         try:
@@ -25,10 +25,10 @@ class IndexView(tables.PagedTableMixin, tables.DataTableView):
             return []
 
 class AutoRotateSecretView(forms.ModalFormView):
-    template_name = 'project/azure/auto_rotate.html'
+    template_name = 'kms/azure/auto_rotate.html'
     form_id = "auto_rotate_azure"
     form_class = project_forms.AutoRotateSecretForm
     submit_label = _("Submit")
-    submit_url = reverse_lazy("horizon:project:azure:auto_rotate")
-    success_url = reverse_lazy('horizon:project:azure:index')
+    submit_url = reverse_lazy("horizon:kms:azure:auto_rotate")
+    success_url = reverse_lazy('horizon:kms:azure:index')
     page_title = _("Auto Rotate Secret")

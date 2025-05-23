@@ -29,14 +29,14 @@ class SecretsFilterAction(tables.FilterAction):
 class CreateSecret(tables.LinkAction):
     name = "create"
     verbose_name = _("Create Secret")
-    url = "horizon:project:aws:create"
+    url = "horizon:kms:aws:create"
     classes = ("ajax-modal",)
     icon = "plus"
 
 class IndexAll(tables.LinkAction):
     name = "index_all"
     verbose_name = _("View All Sent Keys")
-    url = "horizon:project:aws:index_all"
+    url = "horizon:kms:aws:index_all"
 
 class RotateSecret(tables.BatchAction):
     @staticmethod
@@ -72,7 +72,7 @@ class RotateSecret(tables.BatchAction):
 class AutoRotateSecret(tables.LinkAction):
     name = "auto_rotate"
     verbose_name = _("Auto Rotate Secret")
-    url = "horizon:project:aws:auto_rotate"
+    url = "horizon:kms:aws:auto_rotate"
     classes = ("ajax-modal",)
     icon = "plus"
 
@@ -110,7 +110,7 @@ class DeleteSecret(tables.DeleteAction):
 class SetAWSCredentials(tables.LinkAction):
     name = "set_cred"
     verbose_name = _("Set Access Key")
-    url = "horizon:project:aws:set_cred"
+    url = "horizon:kms:aws:set_cred"
     classes = ("ajax-modal",)
     icon = "plus"
 
