@@ -60,7 +60,10 @@ msgid "Set AWS Access Key"
 msgstr "接続先の設定（アクセスキーの登録）"
 
 msgid "AWS Connection Name"
-msgstr "AWS接続名（接続先を識別するための任意の名前です。登録後に先頭に__AWS_が付与されます。）"
+msgstr "AWS接続名"
+
+msgid "AWS Connection Name (to identify the connection destination)"
+msgstr "AWS接続名（接続先を識別するための名前です。登録後に先頭に__AWS_が付与されます。）"
 
 msgid "Set an access key."
 msgstr "接続先AWSの設定（アクセスキーの登録）"

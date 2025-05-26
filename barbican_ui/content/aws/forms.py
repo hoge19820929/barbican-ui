@@ -76,7 +76,7 @@ class AutoRotateSecretForm(forms.SelfHandlingForm):
 class SetCredentialForm(forms.SelfHandlingForm):
     aws_conn = forms.CharField(
         max_length=255,
-        label=_('AWS Connection Name'),
+        label=_('AWS Connection Name (to identify the connection destination)'),
     )
 
     key_id = forms.CharField(
