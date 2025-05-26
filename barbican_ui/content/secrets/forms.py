@@ -93,7 +93,7 @@ class SendSecretAWSForm(forms.SelfHandlingForm):
             (
                 'name',
                 forms.CharField(
-                    max_length=255,
+                    label=_('Key Name'),
                     widget=forms.TextInput(attrs={'readonly': 'readonly'}),
                     initial=self.request.GET.get('name', ''),
                 )
