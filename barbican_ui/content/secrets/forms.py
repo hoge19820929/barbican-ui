@@ -92,16 +92,11 @@ class SendSecretAWSForm(forms.SelfHandlingForm):
             ),
             (
                 'name',
-                forms.RegexField(
+                forms.CharField(
                     max_length=255,
-                    label=_('Key Name'),
+                    widget=forms.TextInput(attrs={'readonly': 'readonly'}),
                     initial=self.request.GET.get('name', ''),
-                    help_text=_('Name of the Oracle KMS key.'),
-                    regex=r"^[a-zA-Z][a-zA-Z0-9_.-]*$",
-                    error_messages={'invalid':
-                                    _('Name must start with a letter and may '
-                                    'only contain letters, numbers, underscores, '
-                                    'periods and hyphens.')})
+                )
             )
         ])
     

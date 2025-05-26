@@ -43,16 +43,11 @@ class AutoRotateSecretForm(forms.SelfHandlingForm):
             ),
             (
                 'name',
-                forms.RegexField(
-                    max_length=255,
+                forms.CharField(
                     label=_('Alias'),
+                    widget=forms.TextInput(attrs={'readonly': 'readonly'}),
                     initial=self.request.GET.get('alias', ''),
-                    help_text=_('Alias of the AWS KMS key.'),
-                    regex=r"^[a-zA-Z][a-zA-Z0-9_.-]*$",
-                    error_messages={'invalid':
-                                    _('Name must start with a letter and may '
-                                    'only contain letters, numbers, underscores, '
-                                    'periods and hyphens.')})
+                )
             ),
             (
                 'pattern',
