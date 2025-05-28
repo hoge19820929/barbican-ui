@@ -29,7 +29,9 @@ class CreateSecretForm(forms.SelfHandlingForm):
             res = api.create_secret(conn, data['name'])
             messages.success(request, _("Successfully create secret: %s") % data['name'])
             return res
-        except Exception:
+        except Exception as e:
+            error_message = _('An error occurred while creating the secret: %s') % str(e)
+            messages.error(request, error_message)
             exceptions.handle(request)
             return False
 
@@ -67,7 +69,9 @@ class AutoRotateSecretForm(forms.SelfHandlingForm):
             api.auto_rotate_key(request.user.project_name, data['key_id'], data['pattern'])
             messages.success(request, _("Successfully set auto rotation: %s") % data['name'])
             return True
-        except Exception:
+        except Exception as e:
+            error_message = _('An error occurred while setting auto rotation: %s') % str(e)
+            messages.error(request, error_message)
             exceptions.handle(request)
             return False
 
@@ -114,7 +118,9 @@ class SendSecretAWSForm(forms.SelfHandlingForm):
             aws_api.byok_aws(conn, data['aws_conn'], data['name'], 'alias/' + data['name'], False, secret)
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
-        except Exception:
+        except Exception as e:
+            error_message = _('An error occurred while sending the key: %s') % str(e)
+            messages.error(request, error_message)
             exceptions.handle(request)
             return False
 
@@ -166,7 +172,9 @@ class SendSecretOracleForm(forms.SelfHandlingForm):
             oracle_api.byok_oci(vault_id, data['name'], secret)
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
-        except Exception:
+        except Exception as e:
+            error_message = _('An error occurred while sending the key: %s') % str(e)
+            messages.error(request, error_message)
             exceptions.handle(request)
             return False
 
@@ -215,7 +223,9 @@ class SendSecretAzureForm(forms.SelfHandlingForm):
             azure_api.byok_azure(request.user.project_name, data['vault'], data['name'], data['key_id'])
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
-        except Exception:
+        except Exception as e:
+            error_message = _('An error occurred while sending the key: %s') % str(e)
+            messages.error(request, error_message)
             exceptions.handle(request)
             return False
 
@@ -265,6 +275,8 @@ class SendSecretGoogleForm(forms.SelfHandlingForm):
             google_api.byok_google(request.user.project_name, data['key_ring'], data['name'], False, secret)
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
-        except Exception:
+        except Exception as e:
+            error_message = _('An error occurred while sending the key: %s') % str(e)
+            messages.error(request, error_message)
             exceptions.handle(request)
             return False
