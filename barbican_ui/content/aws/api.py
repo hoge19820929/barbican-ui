@@ -326,7 +326,7 @@ def byok_aws(conn, aws_conn, key_name, alias_name, do_rotate, secret=None):
         if origin_key_id is None:
             secret = barbican_api.create_secret(conn, key_name)
         else:
-            secret = barbican_api.create_new_version_secret(conn, origin_key_id)
+            secret = barbican_api.create_new_version_secret(conn, origin_key_id, key_name)
 
     secret_id = secret.secret_id
     plaintext_key = secret.payload.encode()

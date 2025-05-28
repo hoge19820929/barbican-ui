@@ -124,6 +124,9 @@ def get_secrets(request, **kwargs):
     return conn.key_manager.secrets(**kwargs)
 
 def create_secret(conn, key_name, container = None):
+    if key_name is None:
+        return None
+    
     # キー作成
     secret = conn.key_manager.create_secret(
         name=key_name,
@@ -154,8 +157,11 @@ def create_secret(conn, key_name, container = None):
 
     return secret
 
-def create_new_version_secret(conn, secret_id):
+def create_new_version_secret(conn, secret_id, secret_name = None):
     secret = conn.key_manager.get_secret(secret_id)
+    if secret.name is None:
+        return create_secret(conn, secret_name)
+
     metadata = get_secret_metadata(conn, secret_id)
     if metadata is None:
         container = None
