@@ -8,14 +8,9 @@ from mistral_lib import actions
 
 from barbican_ui.content.secrets import api as barbican_api
 
-def get_kms_client(conn, aws_conn):
-    secrets = conn.key_manager.secrets()
-    
-    for sec in secrets:
-        if sec.name == aws_conn:
-            secret_id = sec.secret_id
-            secret = conn.key_manager.get_secret(secret_id)
-    
+def get_kms_client_by_secret_id(conn, secret_id):
+    secret = conn.key_manager.get_secret(secret_id)
+
     if secret is None:
         raise Exception("AWS setting is None")
     
@@ -31,6 +26,15 @@ def get_kms_client(conn, aws_conn):
 
     return session.client('kms')
 
+def get_kms_client(conn, aws_conn):
+    secrets = conn.key_manager.secrets()
+    
+    for sec in secrets:
+        if sec.name == aws_conn:
+            secret_id = sec.secret_id
+    
+    return get_kms_client_by_secret_id(conn, secret_id)
+
 def get_kms_clients(conn):
     AWS_PREFIX = '__AWS_'
 
@@ -39,7 +43,7 @@ def get_kms_clients(conn):
 
     for sec in secrets:
         if sec.name.startswith(AWS_PREFIX):
-            kms_clients.append((sec.name, get_kms_client(conn, sec.name)))
+            kms_clients.append((sec.name, get_kms_client_by_secret_id(conn, sec.secret_id)))
 
     return kms_clients
 
