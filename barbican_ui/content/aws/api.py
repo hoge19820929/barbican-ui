@@ -444,14 +444,65 @@ def auto_rotate_key(request, aws_conn, project_name, key_name, alias_name, patte
 
     return trigger
 
+def get_aws_account_id(key_id, access_key, region_name):
+    session = boto3.Session(
+        aws_access_key_id=key_id,
+        aws_secret_access_key=access_key,
+        region_name=region_name,
+    )
+
+    sts_client = session.client('sts')
+    response = sts_client.get_caller_identity()
+    return response['Account']
+
+def has_same_connection_name(conn, aws_conn):
+    secrets = conn.key_manager.secrets()
+
+    for sec in secrets:
+        if sec.name == aws_conn:
+            return True
+
+    return False
+
+def is_same_account_setting(conn, secret_id, account_id, region):
+    secret = conn.key_manager.get_secret(secret_id)
+
+    if secret is None:
+        return False
+    
+    key_id = secret.payload.split(',')[0]
+    access_key = secret.payload.split(',')[1]
+    region2 = secret.payload.split(',')[2]
+    account_id2 = get_aws_account_id(key_id, access_key, region2)
+
+    return account_id == account_id2 and region == region2
+
+def has_same_account_setting(conn, account_id, region):
+    AWS_PREFIX = '__AWS_'
+
+    secrets = conn.key_manager.secrets()
+
+    for sec in secrets:
+        if sec.name.startswith(AWS_PREFIX):
+            if is_same_account_setting(conn, sec.secret_id, account_id, region):
+                return True
+
+    return False
+
 def set_access_key(request, aws_conn, key_id, aws_secret, region):
     conn = barbican_api.create_connection(request)
-    secret_data = f'{key_id},{aws_secret},{region}'
+    account_id = get_aws_account_id(key_id, aws_secret, region)
+    if has_same_connection_name(conn, f'__AWS_{aws_conn}'):
+        raise Exception("The same AWS connection name is already registered.")
+    if has_same_account_setting(conn, account_id, region):
+        raise Exception("An access key with the same AWS account ID and region is already registered.")
+    else:
+        secret_data = f'{key_id},{aws_secret},{region}'
 
-    conn.key_manager.create_secret(
-        name=f'__AWS_{aws_conn}',
-        payload=secret_data,
-        payload_content_type='text/plain',
-        algorithm='AES',
-        bit_length=256,
-    )
+        conn.key_manager.create_secret(
+            name=f'__AWS_{aws_conn}',
+            payload=secret_data,
+            payload_content_type='text/plain',
+            algorithm='AES',
+            bit_length=256,
+        )

@@ -94,6 +94,8 @@ class SetCredentialForm(forms.SelfHandlingForm):
             api.set_access_key(request, data['aws_conn'], data['key_id'], data['aws_secret'], data['region'])
             messages.success(request, _("Successfully set AWS connection: %s") % data['aws_conn'])
             return True
-        except Exception:
+        except Exception as e:
+            error_message = _('An error occurred while setting the credential: %s') % str(e)
+            messages.error(request, error_message)
             exceptions.handle(request)
             return False
