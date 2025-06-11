@@ -70,6 +70,7 @@ class KeyData(resource.Resource):
     allow_list = True
 
     _query_mapping = resource.QueryParameters(
+        "name",
         "alias",
         "key_id",
         "key_state",
@@ -86,6 +87,7 @@ class KeyData(resource.Resource):
         "aws_conn",
     )
 
+    name = resource.Body('name')
     alias = resource.Body('alias')
     key_id = resource.Body('key_id')
     key_state = resource.Body('key_state')
@@ -188,6 +190,7 @@ def fetch_key_data(key_id, kms_client, aws_conn, is_all):
 
     key_data = KeyData(
         id=f'{aws_conn},{key_id}',
+        name=', '.join(aliases) if aliases else '-',
         alias=', '.join(aliases) if aliases else '-',
         key_id=key_id,
         key_state=metadata['KeyState'],
