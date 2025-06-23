@@ -60,7 +60,7 @@ class SetConnectionForm(forms.SelfHandlingForm):
                 'client_id',
                 forms.CharField(
                     max_length=255,
-                    label=_('Crient ID'),
+                    label=_('Client ID'),
                 )
             ),
             (
