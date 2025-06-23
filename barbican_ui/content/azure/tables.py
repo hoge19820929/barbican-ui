@@ -61,6 +61,13 @@ class AutoRotateSecret(tables.LinkAction):
 
         return "?".join([base_url, params])
 
+class SetAzureConnection(tables.LinkAction):
+    name = "set_connection"
+    verbose_name = _("Set Azure Connection")
+    url = "horizon:kms:azure:set_connection"
+    classes = ("ajax-modal",)
+    icon = "plus"
+
 class DeleteSecret(tables.DeleteAction):
     @staticmethod
     def action_present(count):
@@ -99,5 +106,5 @@ class SecretsTable(tables.DataTable):
     class Meta(object):
         name = "azure"
         verbose_name = _("Azure")
-        table_actions = (SecretsFilterAction, DeleteSecret,)
+        table_actions = (SecretsFilterAction, SetAzureConnection, DeleteSecret,)
         row_actions = (AutoRotateSecret, RotateSecret,)

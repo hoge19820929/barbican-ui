@@ -32,3 +32,12 @@ class AutoRotateSecretView(forms.ModalFormView):
     submit_url = reverse_lazy("horizon:kms:azure:auto_rotate")
     success_url = reverse_lazy('horizon:kms:azure:index')
     page_title = _("Auto Rotate Secret")
+
+class SetConnectionView(forms.ModalFormView):
+    template_name = 'kms/azure/set_connection.html'
+    form_id = "auto_connection"
+    form_class = project_forms.SetConnectionForm
+    submit_label = _("Submit")
+    submit_url = reverse_lazy("horizon:kms:azure:set_connection")
+    success_url = reverse_lazy('horizon:kms:azure:index')
+    page_title = _("Set Azure Connection")
