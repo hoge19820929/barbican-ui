@@ -74,7 +74,7 @@ class SetConnectionForm(forms.SelfHandlingForm):
                 'client_secret',
                 forms.CharField(
                     max_length=255,
-                    label=_('Crient Secret'),
+                    label=_('Client Secret'),
                 )
             ),
             (
