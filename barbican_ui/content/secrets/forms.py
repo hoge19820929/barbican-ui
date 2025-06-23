@@ -183,11 +183,11 @@ class SendSecretAzureForm(forms.SelfHandlingForm):
         super().__init__(*args, **kwargs)
         self.fields = collections.OrderedDict([
             (
-                'vault',
+                'conf',
                 forms.ChoiceField(
-                    label=_("Vault Name"),
+                    label=_("Connection Name"),
                     widget=forms.SelectWidget(),
-                    choices=self.get_vault_choices()
+                    choices=self.get_config_choices()
                 )
             ),
             (
@@ -212,15 +212,16 @@ class SendSecretAzureForm(forms.SelfHandlingForm):
             )
         ])
     
-    def get_vault_choices(self):
-        vault_names = azure_api.list_vault_names()
-        choices = [(name, name) for name in vault_names]
+    def get_config_choices(self):
+        conn = api.create_connection(self.request)
+        conf_names = azure_api.list_config_names(conn)
+        choices = [(name, name) for name in conf_names]
 
         return choices
 
     def handle(self, request, data):
         try:
-            azure_api.byok_azure(request.user.project_name, data['vault'], data['name'], data['key_id'])
+            azure_api.byok_azure(request.user.project_name, data['conf'], data['name'], data['key_id'])
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
         except Exception as e:

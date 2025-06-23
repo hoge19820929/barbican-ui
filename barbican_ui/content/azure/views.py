@@ -17,7 +17,7 @@ class IndexView(tables.PagedTableMixin, tables.DataTableView):
     def get_data(self):
         try:
             search_opts = self.get_filters()
-            secrets = project_api.get_key_data(**search_opts)
+            secrets = project_api.get_key_data(self.request, **search_opts)
 
             return secrets
         except Exception:

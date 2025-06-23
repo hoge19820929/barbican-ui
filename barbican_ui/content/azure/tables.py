@@ -39,9 +39,11 @@ class RotateSecret(tables.BatchAction):
     verbose_name = _("Rotate Key")
     icon = "cloud-upload"
 
-    def action(self, request, key_id):
+    def action(self, request, obj_id):
         try:
-            api.rotate_key(request.user.project_name, key_id)
+            conf_name = obj_id.split(',')[0]
+            key_id = obj_id.split(',')[1]
+            api.rotate_key(request.user.project_name, conf_name, key_id)
         except Exception:
             exceptions.handle(request, _("Unable to rotate key."))
 
@@ -54,7 +56,8 @@ class AutoRotateSecret(tables.LinkAction):
 
     def get_link_url(self, datum):
         base_url = reverse(self.url)
-        params = urlencode({"key_id": datum.key_id})
+        conf_name = datum.id.split(',')[0]
+        params = urlencode({"conf_name": conf_name, "key_id": datum.key_id})
 
         return "?".join([base_url, params])
 
@@ -75,9 +78,11 @@ class DeleteSecret(tables.DeleteAction):
             count
         )
     
-    def delete(self, request, key_id):
+    def delete(self, request, obj_id):
         try:
-            api.delete_key(key_id)
+            conf_name = obj_id.split(',')[0]
+            key_id = obj_id.split(',')[1]
+            api.delete_key(request, conf_name, key_id)
         except Exception:
             exceptions.handle(request, _("Unable to delete keys."))
 

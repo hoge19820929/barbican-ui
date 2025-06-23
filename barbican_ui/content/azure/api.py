@@ -16,6 +16,76 @@ from mistral_lib import actions
 
 from barbican_ui.content.secrets import api as barbican_api
 
+def login_azure(conf):
+    command = [
+        'az', 'login', '--service-principal',
+        '--username', conf['client_id'],
+        '--password', conf['client_secret'],
+        '--tenant', conf['tenant_id']
+    ]
+
+    return subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+def get_azure_config_by_secret_id(conn, secret_id):
+    secret = conn.key_manager.get_secret(secret_id)
+
+    if secret is None:
+        raise Exception("Azure config is None")
+
+    return json.loads(secret.payload)
+
+def get_azure_config(conn, azure_conf_name):
+    secrets = conn.key_manager.secrets()
+    
+    for sec in secrets:
+        if sec.name == azure_conf_name:
+            secret_id = sec.secret_id
+    
+    return get_azure_config_by_secret_id(conn, secret_id)
+
+def get_azure_configs(conn):
+    AZURE_PREFIX = '__Azure_'
+
+    secrets = conn.key_manager.secrets()
+    azure_configs = []
+
+    for sec in secrets:
+        if sec.name.startswith(AZURE_PREFIX):
+            azure_configs.append((sec.name, get_azure_config_by_secret_id(conn, sec.secret_id)))
+
+    return azure_configs
+
+def list_config_names(conn):
+    AZURE_PREFIX = '__Azure_'
+
+    secrets = conn.key_manager.secrets()
+    config_names = []
+
+    for sec in secrets:
+        if sec.name.startswith(AZURE_PREFIX):
+            config_names.append(sec.name)
+
+    return config_names
+
+def set_connection(request, azure_conn, client_id, tenant_id, client_secret, subsc_id, key_vault):
+    conn = barbican_api.create_connection(request)
+
+    secret_data = json.dumps({
+        'client_id': client_id,
+        'tenant_id': tenant_id,
+        'client_secret': client_secret,
+        'subsc_id': subsc_id,
+        'key_vault': key_vault
+    })
+
+    conn.key_manager.create_secret(
+        name=f'__Azure_{azure_conn}',
+        payload=secret_data,
+        payload_content_type='text/plain',
+        algorithm='AES',
+        bit_length=256,
+    )
+
 def create_kek(vault_name, key_name):
     credential = DefaultAzureCredential()
     key_client = KeyClient(vault_url=f'https://{vault_name}.vault.azure.net/', credential=credential)
@@ -89,7 +159,7 @@ def import_key_azure(vault_name, key_name, byok_str, origin_key_id):
 
     return subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-def byok_azure(project_name, vault_name, key_name, origin_key_id, do_rotate=False):
+def byok_azure(project_name, conf_name, key_name, origin_key_id, do_rotate=False):
     conn = barbican_api.get_connection(project_name)
 
     if do_rotate:
@@ -110,6 +180,9 @@ def byok_azure(project_name, vault_name, key_name, origin_key_id, do_rotate=Fals
         encryption_algorithm=serialization.NoEncryption()
     )
 
+    conf = get_azure_config(conn, conf_name)
+    login_azure(conf)
+    vault_name = conf['key_vault']
     KEK_NAME = 'KEKforBYOK2048'
 
     try:
@@ -153,99 +226,58 @@ class KeyData(resource.Resource):
     time_created = resource.Body('time_created')
     origin_key_id = resource.Body('origin_key_id')
 
-def get_subscription_id(credentials_file='~/.azure/credentials'):
-    credentials_file = os.path.expanduser(credentials_file)
-
-    config = configparser.ConfigParser()
-
-    config.read(credentials_file)
-
-    return config.get('DEFAULT', 'subscription_id', fallback=None)
-
-def list_vaults(credential):
-    subscription_id = get_subscription_id()
-
-    resource_client = ResourceManagementClient(credential, subscription_id)
-    kv_client = KeyVaultManagementClient(credential, subscription_id)
-
-    resource_groups = resource_client.resource_groups.list()
-
-    vaults_list = []
-
-    for rg in resource_groups:
-        keyvaults = kv_client.vaults.list_by_resource_group(rg.name)
-        vaults_list.extend(keyvaults)
-    
-    return vaults_list
-
-def fetch_keys_for_vault(credential, vault):
-    try:
-        key_client = KeyClient(vault_url=vault.properties.vault_uri, credential=credential)
-
-        keys = key_client.list_properties_of_keys()
-
-        key_data_list = []
-
-        for key_property in keys:
-            key = key_client.get_key(key_property.name)
-
-            # タグ情報に"OriginKeyID"が含まれているキーのみ取得
-            if 'OriginKeyID' in (key.properties.tags or {}):
-                version_count = sum(1 for _ in key_client.list_properties_of_key_versions(key.name))
-                key_data = KeyData(
-                    id=key.id,
-                    name=key.name,
-                    key_id=key.id,
-                    key_version_count=version_count,
-                    vault_name=vault.name,
-                    key_enabled=key.properties.enabled,
-                    time_created=key.properties.created_on,
-                    origin_key_id=key.properties.tags.get('OriginKeyID', ''),
-                )
-                key_data_list.append(key_data)
-
-        return key_data_list
-    except Exception:
-        # アクセス権限エラーを無視
-        return []
-
-def get_key_data(**search_opts):
+def fetch_keys_for_vault(conf_name, vault_name):
+    vault_url = f'https://{vault_name}.vault.azure.net/'
     credential = DefaultAzureCredential()
-    vaults = list_vaults(credential)
+    key_client = KeyClient(vault_url=vault_url, credential=credential)
+
+    keys = key_client.list_properties_of_keys()
 
     key_data_list = []
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_vault = {executor.submit(fetch_keys_for_vault, credential, vault): vault for vault in vaults}
-        for future in concurrent.futures.as_completed(future_to_vault):
-            results = future.result()
-            if search_opts:
-                for result in results:
-                    for key, value in search_opts.items():
-                        if result[key] == value:
-                            key_data_list.extend([result])
-            else:
-                key_data_list.extend(results)
+
+    for key_property in keys:
+        key = key_client.get_key(key_property.name)
+
+        # タグ情報に"OriginKeyID"が含まれているキーのみ取得
+        if 'OriginKeyID' in (key.properties.tags or {}):
+            version_count = sum(1 for _ in key_client.list_properties_of_key_versions(key.name))
+            key_data = KeyData(
+                id=f'{conf_name},{key.id}',
+                name=key.name,
+                key_id=key.id,
+                key_version_count=version_count,
+                vault_name=vault_name,
+                key_enabled=key.properties.enabled,
+                time_created=key.properties.created_on,
+                origin_key_id=key.properties.tags.get('OriginKeyID', ''),
+            )
+            key_data_list.append(key_data)
 
     return key_data_list
 
-def list_vault_names():
-    credential = DefaultAzureCredential()
-    vaults = list_vaults(credential)
-    vault_names = [vault.name for vault in vaults]
+def get_key_data(request, **search_opts):
+    conn = barbican_api.create_connection(request)
+    azure_confs = get_azure_configs(conn)
 
-    return vault_names
+    key_data_list = []
+    for (conf_name, azure_conf) in azure_confs:
+        login_azure(azure_conf)
+        key_data_list.extend(fetch_keys_for_vault(conf_name, azure_conf['key_vault']))
 
-def rotate_key(project_name, key_id):
+    return key_data_list
+
+def rotate_key(project_name, conf_name, key_id):
     # KEY ID: https://{VAULT_NAME}.vault.azure.net/keys/{KEY_NAME}
-    url_without_protocol = key_id.split('//')[1]
-    domain_and_path = url_without_protocol.split('/')
-    vault_name = domain_and_path[0].split('.')[0]
+    vault_name = key_id.split('//')[1].split('.')[0]
     key_name = key_id.split('/keys/')[1].split('/')[0]
     origin_key_id = get_origin_key_id(vault_name, key_name)
 
-    byok_azure(project_name, vault_name, key_name, origin_key_id, True)
+    byok_azure(project_name, conf_name, key_name, origin_key_id, True)
 
-def delete_key(key_id):
+def delete_key(request, conf_name, key_id):
+    conn = barbican_api.create_connection(request)
+    conf = get_azure_config(conn, conf_name)
+    login_azure(conf)
     credential = DefaultAzureCredential()
     # KEY ID: https://{VAULT_NAME}.vault.azure.net/keys/{KEY_NAME}
     key_client = KeyClient(vault_url=key_id.split('/keys/')[0], credential=credential)
@@ -260,12 +292,13 @@ def delete_key(key_id):
         raise
 
 class BYOKAzureAction(actions.Action):
-    def __init__(self, project_name, key_id):
+    def __init__(self, project_name, conf_name, key_id):
         self.project_name = project_name
+        self.conf_name = conf_name
         self.key_id = key_id
     
     def run(self, context):
-        rotate_key(self.project_name, self.key_id)
+        rotate_key(self.project_name, self.conf_name, self.key_id)
 
 def get_workflow(conn, name):
     workflows = conn.workflow.workflows()
@@ -282,12 +315,14 @@ version: '2.0'
   type: direct
   input:
     - project_name
+    - conf_name
     - key_id
   tasks:
     execute_byok_azure:
       action: byok.azure
       input:
         project_name: <% $.project_name %>
+        conf_name: <% $.conf_name %>
         key_id: <% $.key_id %>
       on-success: notify_execution
     notify_execution:
@@ -300,12 +335,13 @@ version: '2.0'
 
     return workflow
 
-def create_cron_trigger(conn, workflow_name, project_name, key_id, pattern):
+def create_cron_trigger(conn, workflow_name, project_name, conf_name, key_id, pattern):
     trigger = conn.workflow.create_cron_trigger(
         name=f'key_rotation_{key_id}',
         workflow_name=workflow_name,
         workflow_input={
             "project_name": project_name,
+            "conf_name": conf_name,
             "key_id": key_id
         },
         pattern=pattern,
@@ -313,12 +349,12 @@ def create_cron_trigger(conn, workflow_name, project_name, key_id, pattern):
     )
     return trigger
 
-def auto_rotate_key(project_name, key_id, pattern):
+def auto_rotate_key(project_name, conf_name, key_id, pattern):
     conn = barbican_api.get_connection(project_name)
     workflow_name = f'rotate_workflow_azure_{project_name}'
     workflow_created = get_workflow(conn, workflow_name)
     if workflow_created is None:
         create_workflow(conn, workflow_name)
-    trigger = create_cron_trigger(conn, workflow_name, project_name, key_id, pattern)
+    trigger = create_cron_trigger(conn, workflow_name, project_name, conf_name, key_id, pattern)
 
     return trigger
