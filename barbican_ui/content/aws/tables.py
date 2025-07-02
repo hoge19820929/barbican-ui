@@ -103,8 +103,17 @@ class DeleteSecret(tables.DeleteAction):
         try:
             aws_conn = obj_id.split(',')[0]
             key_id = obj_id.split(',')[1]
-            api.schedule_key_deletion(request, aws_conn, key_id)
-        except Exception as e:
+            conn = barbican_api.create_connection(request)
+            kms_client = api.get_kms_client(conn, aws_conn)
+            api.schedule_key_deletion(kms_client, key_id)
+            (origin_key_name, key_version) = api.get_origin_version(key_id, kms_client)
+            
+            # 古いバージョンの鍵も一括削除
+            if key_version > 1:
+                old_keys_id = api.get_old_keys_id(kms_client, origin_key_name, key_version)
+                for old_key_id in old_keys_id:
+                    api.schedule_key_deletion(kms_client, old_key_id)
+        except Exception:
             exceptions.handle(request, _("Unable to delete secrets."))
 
 class SetAWSCredentials(tables.LinkAction):

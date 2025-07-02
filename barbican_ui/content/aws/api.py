@@ -165,12 +165,19 @@ def determine_key_type(key_spec):
     else:
         return 'Unknown'
 
+def get_origin_version(key_id, kms_client):
+    tags = list_key_tags(key_id, kms_client)
+
+    return (tags.get('OriginKeyName', '-'), int(tags.get('OriginKeyVersion', '0')))
+
+def is_system_key(aliases):
+    return any(alias.startswith('aws/') for alias in aliases)
+
 def fetch_key_data(key_id, kms_client, aws_conn, is_all):
     metadata = describe_key_metadata(key_id, kms_client)
     aliases = list_key_aliases(key_id, kms_client)
 
-    is_system_key = any(alias.startswith('aws/') for alias in aliases)
-    if is_system_key:
+    if is_system_key(aliases):
         return None
     
     # BYOKしたキーのみ表示
@@ -359,10 +366,32 @@ def byok_aws(conn, aws_conn, key_name, alias_name, do_rotate, secret=None):
     secret_version = barbican_api.get_key_version(conn, secret_id)
     set_origin_tags(kms_client, key_id, secret_id, secret.name, secret_version)
 
-def schedule_key_deletion(request, aws_conn, key_id, waiting_period_days=7):
-    conn = barbican_api.create_connection(request)
-    kms_client = get_kms_client(conn, aws_conn)
+def get_old_key_id(kms_client, key_id, origin_key_name, key_version):
+    aliases = list_key_aliases(key_id, kms_client)
+    metadata = describe_key_metadata(key_id, kms_client)
+    if is_system_key(aliases) or metadata['KeyState'] == 'PendingDeletion':
+        return None
+    tags = list_key_tags(key_id, kms_client)
+    if tags.get('OriginKeyName', '') == origin_key_name and int(tags.get('OriginKeyVersion', '0')) < key_version:
+        return key_id
+    
+    return None
 
+def get_old_keys_id(kms_client, origin_key_name, key_version):
+    keys = list_kms_keys(kms_client)
+    old_keys = []
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(get_old_key_id, kms_client, key['KeyId'], origin_key_name, key_version): key for key in keys}
+
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                old_keys.append(result)
+
+    return old_keys
+
+def schedule_key_deletion(kms_client, key_id, waiting_period_days=7):
     response = kms_client.schedule_key_deletion(
         KeyId=key_id,
         PendingWindowInDays=waiting_period_days
