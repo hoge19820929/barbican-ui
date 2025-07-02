@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from datetime import datetime
@@ -6,26 +7,76 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, keywrap, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from google.cloud import kms
-from google.auth import default
+from google.oauth2 import service_account
 from openstack import resource
 from mistral_lib import actions
 
 from barbican_ui.content.secrets import api as barbican_api
 
-def get_project_id():
-    _, project_id = default()
+def get_config_by_secret_id(conn, secret_id):
+    secret = conn.key_manager.get_secret(secret_id)
 
-    if project_id is None:
-        raise ValueError("Project ID could not be retrieved from the credentials.")
+    if secret is None:
+        raise Exception("Google config is None")
     
-    return project_id
+    return json.loads(secret.payload)
 
-def list_key_ring_ids():
-    project_id = get_project_id()
-    # TODO: FIXME
-    location_id = 'us-central1'
+def get_config(conn, conf_name):
+    secrets = conn.key_manager.secrets()
 
-    client = kms.KeyManagementServiceClient()
+    for sec in secrets:
+        if sec.name == conf_name:
+            secret_id = sec.secret_id
+    
+    return get_config_by_secret_id(conn, secret_id)
+
+def get_configs(conn):
+    CONFIG_PREFIX = '__Google_'
+
+    secrets = conn.key_manager.secrets()
+    configs = []
+
+    for sec in secrets:
+        if sec.name.startswith(CONFIG_PREFIX):
+            configs.append((sec.name, get_config_by_secret_id(conn, sec.secret_id)))
+
+    return configs
+
+def get_kms_client(config):
+    credentials = service_account.Credentials.from_service_account_info(config)
+
+    return kms.KeyManagementServiceClient(credentials=credentials)
+
+def list_config_names(conn):
+    CONFIG_PREFIX = '__Google_'
+
+    secrets = conn.key_manager.secrets()
+    config_names = []
+
+    for sec in secrets:
+        if sec.name.startswith(CONFIG_PREFIX):
+            config_names.append(sec.name)
+    
+    return config_names
+
+def set_connection(request, conf_name, key_file):
+    conn = barbican_api.create_connection(request)
+
+    conn.key_manager.create_secret(
+        name=f'__Google_{conf_name}',
+        payload=key_file,
+        payload_content_type='text/plain',
+        algorithm='AES',
+        bit_length=256,
+    )
+
+def list_key_ring_ids(request, conf_name):
+    conn = barbican_api.create_connection(request)
+    config = get_config(conn, conf_name)
+    project_id = config['project_id']
+    location_id = config['location_id']
+
+    client = get_kms_client(config)
     location_path = client.common_location_path(project_id, location_id)
 
     key_ring_ids = []
@@ -35,9 +86,7 @@ def list_key_ring_ids():
 
     return key_ring_ids
 
-def create_key_for_import(project_id, location_id, key_ring_id, crypto_key_id):
-    client = kms.KeyManagementServiceClient()
-
+def create_key_for_import(client, project_id, location_id, key_ring_id, crypto_key_id):
     # TODO: FIXME
     purpose = kms.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT
     algorithm = kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION
@@ -63,9 +112,7 @@ def create_key_for_import(project_id, location_id, key_ring_id, crypto_key_id):
 
     return created_key
 
-def create_import_job(project_id, location_id, key_ring_id, import_job_id):
-    client = kms.KeyManagementServiceClient()
-
+def create_import_job(client, project_id, location_id, key_ring_id, import_job_id):
     key_ring_path = client.key_ring_path(project_id, location_id, key_ring_id)
     import_method = kms.ImportJob.ImportMethod.RSA_OAEP_3072_SHA1_AES_256
     protection_level = kms.ProtectionLevel.SOFTWARE
@@ -82,9 +129,7 @@ def create_import_job(project_id, location_id, key_ring_id, import_job_id):
         }
     )
 
-def import_manually_wrapped_key(project_id, location_id, key_ring_id, crypto_key_id, import_job_id, payload):
-    client = kms.KeyManagementServiceClient()
-
+def import_manually_wrapped_key(client, project_id, location_id, key_ring_id, crypto_key_id, import_job_id, payload):
     crypto_key_path = client.crypto_key_path(project_id, location_id, key_ring_id, crypto_key_id)
     import_job_path = client.import_job_path(project_id, location_id, key_ring_id, import_job_id)
 
@@ -128,9 +173,7 @@ def import_manually_wrapped_key(project_id, location_id, key_ring_id, crypto_key
         }
     )
 
-def update_label(crypto_key, label):
-    client = kms.KeyManagementServiceClient()
-
+def update_label(client, crypto_key, label):
     crypto_key.labels["origin_key_id"] = label
 
     client.update_crypto_key(
@@ -140,23 +183,23 @@ def update_label(crypto_key, label):
         }
     )
 
-def get_rotation_crypto_key(project_id, location_id, key_ring_id, crypto_key_id):
-    client = kms.KeyManagementServiceClient()
+def get_rotation_crypto_key(client, project_id, location_id, key_ring_id, crypto_key_id):
     crypto_key_path = client.crypto_key_path(project_id, location_id, key_ring_id, crypto_key_id)
     return client.get_crypto_key(name=crypto_key_path)
 
-def byok_google(origin_project_name, key_ring_id, key_id, do_rotate, secret=None):
-    project_id = get_project_id()
-    # TODO: FIXME
-    location_id = 'us-central1'
-    import_job_id = f'byok_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
-    create_import_job(project_id, location_id, key_ring_id, import_job_id)
-
+def byok_google(origin_project_name, conf_name, key_ring_id, key_id, do_rotate, secret=None):
     conn = barbican_api.get_connection(origin_project_name)
+    config = get_config(conn, conf_name)
+    client = get_kms_client(config)
+    project_id = config['project_id']
+    location_id = config['location_id']
+
+    import_job_id = f'byok_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+    create_import_job(client, project_id, location_id, key_ring_id, import_job_id)
 
     if do_rotate:
         # ローテーション対象のキーを取得
-        crypto_key = get_rotation_crypto_key(project_id, location_id, key_ring_id, key_id)
+        crypto_key = get_rotation_crypto_key(client, project_id, location_id, key_ring_id, key_id)
         origin_key_id = crypto_key.labels.get('origin_key_id', None)
         if origin_key_id is None:
             secret = barbican_api.create_secret(conn, key_id)
@@ -164,13 +207,13 @@ def byok_google(origin_project_name, key_ring_id, key_id, do_rotate, secret=None
             secret = barbican_api.create_new_version_secret(conn, origin_key_id)
     else:
         # Google KMSにキーバージョンが空のキーを作成
-        crypto_key = create_key_for_import(project_id, location_id, key_ring_id, key_id)
+        crypto_key = create_key_for_import(client, project_id, location_id, key_ring_id, key_id)
     
     import_manually_wrapped_key(
-        project_id, location_id, key_ring_id, key_id, import_job_id, secret.payload.encode('utf-8')
+        client, project_id, location_id, key_ring_id, key_id, import_job_id, secret.payload.encode('utf-8')
     )
     # ラベルにorigin_key_idを設定
-    update_label(crypto_key, secret.secret_id)
+    update_label(client, crypto_key, secret.secret_id)
 
 class KeyData(resource.Resource):
     resources_key = 'google'
@@ -200,7 +243,7 @@ class KeyData(resource.Resource):
     time_created = resource.Body('time_created')
     origin_key_id = resource.Body('origin_key_id')
 
-def fetch_keys(client, key_ring_path):
+def fetch_keys(client, conf_name, key_ring_path):
     keys = client.list_crypto_keys(parent=key_ring_path)
     
     key_data_list = []
@@ -217,7 +260,7 @@ def fetch_keys(client, key_ring_path):
             origin_key_id = key.labels.get('origin_key_id', '')
 
             key_data = KeyData(
-                id=key_id,
+                id=f'{conf_name},{key_id}',
                 name=key_name,
                 key_id=key_id,
                 key_version_count=version_count,
@@ -230,38 +273,44 @@ def fetch_keys(client, key_ring_path):
 
     return key_data_list
 
-def get_key_data(**search_opts):
-    client = kms.KeyManagementServiceClient()
-    project_id = get_project_id()
-    location_id = 'us-central1'
-    location_path = client.common_location_path(project_id, location_id)
-    key_rings = client.list_key_rings(parent=location_path)
-
+def get_key_data(request, **search_opts):
+    conn = barbican_api.create_connection(request)
+    configs = get_configs(conn)
     key_data_list = []
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_key_ring = {
-            executor.submit(fetch_keys, client, key_ring.name): key_ring for key_ring in key_rings
-        }
-        for future in concurrent.futures.as_completed(future_to_key_ring):
-            results = future.result()
-            if search_opts:
-                for result in results:
-                    for key, value in search_opts.items():
-                        if result[key] == value:
-                            key_data_list.extend([result])
-            else:
-                key_data_list.extend(results)
+
+    for (conf_name, config) in configs:
+        client = get_kms_client(config)
+        project_id = config['project_id']
+        location_id = config['location_id']
+        location_path = client.common_location_path(project_id, location_id)
+        key_rings = client.list_key_rings(parent=location_path)
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_key_ring = {
+                executor.submit(fetch_keys, client, conf_name, key_ring.name): key_ring for key_ring in key_rings
+            }
+            for future in concurrent.futures.as_completed(future_to_key_ring):
+                results = future.result()
+                if search_opts:
+                    for result in results:
+                        for key, value in search_opts.items():
+                            if result[key] == value:
+                                key_data_list.extend([result])
+                else:
+                    key_data_list.extend(results)
 
     return key_data_list
 
-def rotate_key(origin_project_name, key_path):
+def rotate_key(origin_project_name, conf_name, key_path):
     # KEY Path: projects/{project_id}/locations/{location_id}/keyRings/{key_ring_id}/cryptoKeys/{key_id}
     key_ring_id = key_path.split('/keyRings/')[1].split('/')[0]
     crypto_key_id = key_path.split('/cryptoKeys/')[1]
-    byok_google(origin_project_name, key_ring_id, crypto_key_id, True)
+    byok_google(origin_project_name, conf_name, key_ring_id, crypto_key_id, True)
 
-def delete_key_versions(key_path):
-    client = kms.KeyManagementServiceClient()
+def delete_key_versions(request, conf_name, key_path):
+    conn = barbican_api.create_connection(request)
+    config = get_config(conn, conf_name)
+    client = get_kms_client(config)
     versions = client.list_crypto_key_versions(parent=key_path)
 
     for version in versions:
@@ -274,12 +323,13 @@ def delete_key_versions(key_path):
         client.destroy_crypto_key_version(name=version.name)
 
 class BYOKGoogleAction(actions.Action):
-    def __init__(self, project_name, key_id):
+    def __init__(self, project_name, conf_name, key_id):
         self.project_name = project_name
+        self.conf_name = conf_name
         self.key_id = key_id
     
     def run(self, context):
-        rotate_key(self.project_name, self.key_id)
+        rotate_key(self.project_name, self.conf_name, self.key_id)
 
 def get_workflow(conn, name):
     workflows = conn.workflow.workflows()
@@ -296,12 +346,14 @@ version: '2.0'
   type: direct
   input:
     - project_name
+    - conf_name
     - key_id
   tasks:
     execute_byok_google:
       action: byok.google
       input:
         project_name: <% $.project_name %>
+        conf_name: <% $.conf_name %>
         key_id: <% $.key_id %>
       on-success: notify_execution
     notify_execution:
@@ -314,12 +366,13 @@ version: '2.0'
 
     return workflow
 
-def create_cron_trigger(conn, workflow_name, origin_project_name, key_id, pattern):
+def create_cron_trigger(conn, workflow_name, origin_project_name, conf_name, key_id, pattern):
     trigger = conn.workflow.create_cron_trigger(
         name=f'key_rotation_{origin_project_name}_{key_id}',
         workflow_name=workflow_name,
         workflow_input={
             "project_name": origin_project_name,
+            "conf_name": conf_name,
             "key_id": key_id
         },
         pattern=pattern,
@@ -327,12 +380,12 @@ def create_cron_trigger(conn, workflow_name, origin_project_name, key_id, patter
     )
     return trigger
 
-def auto_rotate_key(origin_project_name, key_id, pattern):
+def auto_rotate_key(origin_project_name, conf_name, key_id, pattern):
     conn = barbican_api.get_connection(origin_project_name)
     workflow_name = f'rotate_workflow_google_{origin_project_name}'
     workflow_created = get_workflow(conn, workflow_name)
     if workflow_created is None:
         create_workflow(conn, workflow_name)
-    trigger = create_cron_trigger(conn, workflow_name, origin_project_name, key_id, pattern)
+    trigger = create_cron_trigger(conn, workflow_name, origin_project_name, conf_name, key_id, pattern)
 
     return trigger

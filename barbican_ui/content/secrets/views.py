@@ -69,6 +69,29 @@ class SendSecretAzureView(forms.ModalFormView):
     success_url = reverse_lazy('horizon:kms:secrets:index')
     page_title = _("Send Key(Azure)")
 
+class SelectGoogleConnectionView(forms.ModalFormView):
+    template_name = 'kms/secrets/select_google_connection.html'
+    form_id = "select_google_connection"
+    form_class = project_forms.SelectGoogleConnectionForm
+    submit_label = _("Submit")
+    submit_url = reverse_lazy("horizon:kms:secrets:select_google_connection")
+    success_url = reverse_lazy('horizon:kms:secrets:send_key_google')
+    page_title = _("Select Google Connection")
+
+    def form_valid(self, form):
+        conn_name = form.cleaned_data.get('conn_name')
+        key_id = form.cleaned_data.get('key_id')
+        name = form.cleaned_data.get('name')
+
+        query_string = urlencode({
+            'conn_name': conn_name,
+            'key_id': key_id,
+            'name': name,
+        })
+        self.success_url = f"{self.success_url}?{query_string}"
+
+        return super().form_valid(form)
+
 class SendSecretGoogleView(forms.ModalFormView):
     template_name = 'kms/secrets/send_key_google.html'
     form_id = "send_key_google"

@@ -17,7 +17,7 @@ class IndexView(tables.PagedTableMixin, tables.DataTableView):
     def get_data(self):
         try:
             search_opts = self.get_filters()
-            secrets = project_api.get_key_data(**search_opts)
+            secrets = project_api.get_key_data(self.request, **search_opts)
 
             return secrets
         except Exception:
@@ -32,3 +32,12 @@ class AutoRotateSecretView(forms.ModalFormView):
     submit_url = reverse_lazy("horizon:kms:google:auto_rotate")
     success_url = reverse_lazy('horizon:kms:google:index')
     page_title = _("Auto Rotate Secret")
+
+class SetConnectionView(forms.ModalFormView):
+    template_name = 'kms/google/set_connection.html'
+    form_id = "set_connection_google"
+    form_class = project_forms.SetConnectionForm
+    submit_label = _("Submit")
+    submit_url = reverse_lazy("horizon:kms:google:set_connection")
+    success_url = reverse_lazy('horizon:kms:google:index')
+    page_title = _("Set Google Cloud connection")

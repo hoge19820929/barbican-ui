@@ -230,10 +230,56 @@ class SendSecretAzureForm(forms.SelfHandlingForm):
             exceptions.handle(request)
             return False
 
+class SelectGoogleConnectionForm(forms.SelfHandlingForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields = collections.OrderedDict([
+            (
+                'conn_name',
+                forms.ChoiceField(
+                    label=_("Google Connection Name"),
+                    widget=forms.SelectWidget(),
+                    choices=self.get_config_choices()
+                )
+            ),
+            (
+                'key_id',
+                forms.CharField(
+                    widget=forms.HiddenInput(),
+                    initial=self.request.GET.get('key_id', ''),
+                )
+            ),
+            (
+                'name',
+                forms.CharField(
+                    widget=forms.HiddenInput(),
+                    initial=self.request.GET.get('name', ''),
+                )
+            ),
+        ])
+
+    def get_config_choices(self):
+        conn = api.create_connection(self.request)
+        conf_names = google_api.list_config_names(conn)
+        choices = [(name, name) for name in conf_names]
+
+        return choices
+    
+    def handle(self, request, data):
+        return True
+
 class SendSecretGoogleForm(forms.SelfHandlingForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields = collections.OrderedDict([
+            (
+                'conn_name',
+                forms.CharField(
+                    label=_('Connection Name'),
+                    widget=forms.TextInput(attrs={'readonly': 'readonly'}),
+                    initial=self.request.GET.get('conn_name', ''),
+                )
+            ),
             (
                 'key_ring',
                 forms.ChoiceField(
@@ -251,21 +297,22 @@ class SendSecretGoogleForm(forms.SelfHandlingForm):
             ),
             (
                 'name',
-                forms.RegexField(
-                    max_length=255,
+                forms.CharField(
                     label=_('Key Name'),
+                    widget=forms.TextInput(attrs={'readonly': 'readonly'}),
                     initial=self.request.GET.get('name', ''),
-                    help_text=_('Name of the Google KMS key.'),
-                    regex=r"^[a-zA-Z][a-zA-Z0-9_.-]*$",
-                    error_messages={'invalid':
-                                    _('Name must start with a letter and may '
-                                    'only contain letters, numbers, underscores, '
-                                    'periods and hyphens.')})
-            )
+                )
+            ),
         ])
     
     def get_key_ring_choices(self):
-        key_ring_ids = google_api.list_key_ring_ids()
+        conn_name = self.request.GET.get('conn_name')
+        if conn_name is None:
+            conn_name = self.request.session['conn_name']
+        else:
+            self.request.session['conn_name'] = conn_name
+
+        key_ring_ids = google_api.list_key_ring_ids(self.request, conn_name)
         choices = [(key_ring_id, key_ring_id) for key_ring_id in key_ring_ids]
 
         return choices
@@ -273,7 +320,7 @@ class SendSecretGoogleForm(forms.SelfHandlingForm):
     def handle(self, request, data):
         try:
             secret = api.get_secret(request, data['key_id'])
-            google_api.byok_google(request.user.project_name, data['key_ring'], data['name'], False, secret)
+            google_api.byok_google(request.user.project_name, data['conn_name'], data['key_ring'], data['name'], False, secret)
             messages.success(request, _("Successfully send a key: %s") % data['name'])
             return True
         except Exception as e:

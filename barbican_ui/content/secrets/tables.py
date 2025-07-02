@@ -106,7 +106,7 @@ class SendAzureKey(tables.LinkAction):
 class SendGoogleKey(tables.LinkAction):
     name = "send-google"
     verbose_name = _("Send Key(Google)")
-    url = "horizon:kms:secrets:send_key_google"
+    url = "horizon:kms:secrets:select_google_connection"
     classes = ("ajax-modal",)
     icon = "plus"
 
