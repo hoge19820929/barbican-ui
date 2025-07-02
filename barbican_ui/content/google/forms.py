@@ -79,7 +79,7 @@ class SetConnectionForm(forms.SelfHandlingForm):
             key_file_dict = json.loads(data['key_file'])
             key_file_dict['location_id'] = data['location_id']
             key_file_str = json.dumps(key_file_dict)
-            api.get_connection(request, data['google_conn'], key_file_str)
+            api.set_connection(request, data['google_conn'], key_file_str)
             messages.success(request, _("Successfully set Google connection: %s") % data['google_conn'])
             return True
         except Exception:
